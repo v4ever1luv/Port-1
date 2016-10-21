@@ -4,28 +4,19 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
-namespace OneKeyToWin_AIO_Sebby
+namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Orianna
+    class Orianna : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        private Spell E, Q, R, W, QR;
-        private float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-        private AIHeroClient Player { get { return ObjectManager.Player; } }
-
+        private Spell QR;
         private float RCastTime = 0;
         private Vector3 BallPos;
         private int FarmId;
         private bool Rsmart = false;
         private AIHeroClient best;
 
-        public void LoadOKTW()
+        public Orianna()
         {
             Q = new Spell(SpellSlot.Q, 800);
             W = new Spell(SpellSlot.W, 210);
@@ -52,8 +43,6 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu(Player.ChampionName).SubMenu("E Shield Config").AddItem(new MenuItem("AGC", "AntiGapcloserE", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQout", "Farm Q out range aa minion", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("Mana", "LaneClear Mana", true).SetValue(new Slider(60, 100, 0)));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("LCminions", "LaneClear minimum minions", true).SetValue(new Slider(2, 10, 0)));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQ", "LaneClear Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmW", "LaneClear W", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmE", "LaneClear E", true).SetValue(false));
@@ -69,7 +58,7 @@ namespace OneKeyToWin_AIO_Sebby
                 Config.SubMenu(Player.ChampionName).SubMenu("R config").SubMenu("Always R").AddItem(new MenuItem("Ralways" + enemy.ChampionName, enemy.ChampionName,true).SetValue(false));
 
             Config.SubMenu(Player.ChampionName).AddItem(new MenuItem("W", "Auto W SpeedUp logic", true).SetValue(false));
-            Game.OnTick += Game_OnGameUpdate;
+            Game.OnUpdate += Game_OnGameUpdate;
             GameObject.OnCreate += Obj_AI_Base_OnCreate;
             Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
@@ -217,7 +206,7 @@ namespace OneKeyToWin_AIO_Sebby
 
         private void LogicR()
         {            
-            foreach (var t in HeroManager.Enemies.Where(t => t.IsValidTarget() && BallPos.Distance(LeagueSharp.Common.Prediction.GetPrediction(t, R.Delay).CastPosition) < R.Width && BallPos.Distance(t.ServerPosition) < R.Width))
+            foreach (var t in HeroManager.Enemies.Where(t => t.IsValidTarget() && BallPos.Distance(Prediction.GetPrediction(t, R.Delay).CastPosition) < R.Width && BallPos.Distance(t.ServerPosition) < R.Width))
             {
                 if (Program.Combo && Config.Item("Ralways" + t.ChampionName, true).GetValue<bool>())
                 {
@@ -328,7 +317,7 @@ namespace OneKeyToWin_AIO_Sebby
             }
             
 
-            if ((Player.ManaPercent > Config.Item("Mana", true).GetValue<Slider>().Value || (Player.UnderTurret(false) && !Player.UnderTurret(true))))
+            if ((FarmSpells || (Player.UnderTurret(false) && !Player.UnderTurret(true))))
             {
                 var Qfarm = Q.GetCircularFarmLocation(allMinions, 100);
                 var QWfarm = Q.GetCircularFarmLocation(allMinions, W.Width);
@@ -337,7 +326,7 @@ namespace OneKeyToWin_AIO_Sebby
                     return;
                 if (Config.Item("farmQ", true).GetValue<bool>())
                 {
-                    if (Qfarm.MinionsHit > Config.Item("LCminions", true).GetValue<Slider>().Value && !W.IsReady() && Q.IsReady())
+                    if (Qfarm.MinionsHit >= FarmMinions && !W.IsReady() && Q.IsReady())
                     {
                         Q.Cast(Qfarm.Position);
                     }
@@ -394,7 +383,7 @@ namespace OneKeyToWin_AIO_Sebby
             else
             {
                 float delay = (distance / Q.Speed + Q.Delay);
-                var prepos = LeagueSharp.Common.Prediction.GetPrediction(target, delay, Q.Width);
+                var prepos = Prediction.GetPrediction(target, delay, Q.Width);
 
                 if ((int)prepos.Hitchance > 5 - Config.Item("QHitChance", true).GetValue<StringList>().SelectedIndex)
                 {
@@ -445,7 +434,7 @@ namespace OneKeyToWin_AIO_Sebby
             int count = 0;
             foreach (var t in HeroManager.Enemies.Where(t => t.IsValidTarget()))
             {
-                Vector3 prepos = LeagueSharp.Common.Prediction.GetPrediction(t, delay).CastPosition;
+                Vector3 prepos = Prediction.GetPrediction(t, delay).CastPosition;
                 if (position.Distance(prepos) < range)
                     count++;
             }
@@ -484,14 +473,14 @@ namespace OneKeyToWin_AIO_Sebby
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = QMANA - Player.PARRegenRate * Q.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         private void Drawing_OnDraw(EventArgs args)

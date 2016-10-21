@@ -51,7 +51,7 @@ namespace ezEvade.SpecialSpells
                     {
                         info.usePosition = false;
                         info.objList.Add(obj.NetworkId, obj);
-
+                        
                         LeagueSharp.Common.Utility.DelayAction.Add(8900, () =>
                         {
                             if (info.objList.ContainsKey(obj.NetworkId))
@@ -99,7 +99,6 @@ namespace ezEvade.SpecialSpells
                         }
                     }
                 }
-
                 specialSpellArgs.noProcess = true;
             }
         }

@@ -5,10 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using EloBuddy;
 using LeagueSharp.Common;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Core
 {
@@ -24,7 +20,7 @@ namespace OneKeyToWin_AIO_Sebby.Core
             {
                 if (spell != null && target != null)
                 {
-                    var pred = LeagueSharp.Common.Prediction.GetPrediction(target, spell.Delay, spell.Width / 2, spell.Speed);
+                    var pred = Prediction.GetPrediction(target, spell.Delay, spell.Width / 2, spell.Speed);
                     SharpDX.Vector2 castVec = (pred.UnitPosition.To2D() + target.ServerPosition.To2D()) / 2;
                     SharpDX.Vector2 castVec2 = Player.ServerPosition.To2D() +
                                                SharpDX.Vector2.Normalize(pred.UnitPosition.To2D() - Player.Position.To2D()) * (spell.Range);
@@ -73,7 +69,7 @@ namespace OneKeyToWin_AIO_Sebby.Core
             {
                 if (spell != null && target != null)
                 {
-                    var pred = LeagueSharp.Common.Prediction.GetPrediction(target, spell.Delay, spell.Width / 2, spell.Speed); //spell.Width/2
+                    var pred = Prediction.GetPrediction(target, spell.Delay, spell.Width / 2, spell.Speed); //spell.Width/2
                     var collision = spell.GetCollision(Player.ServerPosition.To2D(), new List<SharpDX.Vector2> { pred.CastPosition.To2D() });
                     //var minioncol = collision.Where(x => !(x is AIHeroClient)).Count(x => x.IsMinion);
                     var minioncol = collision.Count(x => (HeroOnly == false ? x.IsMinion : (x is AIHeroClient)));
@@ -116,7 +112,7 @@ namespace OneKeyToWin_AIO_Sebby.Core
             {
                 if (spell != null && target != null)
                 {
-                    var pred = LeagueSharp.Common.Prediction.GetPrediction(target, spell.Delay, spell.Width / 2, spell.Speed); //spell.Width/2
+                    var pred = Prediction.GetPrediction(target, spell.Delay, spell.Width / 2, spell.Speed); //spell.Width/2
                     var collision = spell.GetCollision(Player.ServerPosition.To2D(), new List<SharpDX.Vector2> { pred.CastPosition.To2D() });
                     var minioncol = collision.Count(x => (HeroOnly == false ? x.IsMinion : (x is AIHeroClient)));
                     if (target.IsValidTarget(spell.Range - target.MoveSpeed * (spell.Delay + Player.Distance(target.ServerPosition) / spell.Speed) + alpha) && minioncol <= colmini && pred.Hitchance >= SelectedHitchance)
@@ -131,7 +127,7 @@ namespace OneKeyToWin_AIO_Sebby.Core
         {
             if (spell != null && target != null)
             {
-                var pred = LeagueSharp.Common.Prediction.GetPrediction(target, spell.Delay > 0 ? spell.Delay : 0.25f, spell.Range);
+                var pred = Prediction.GetPrediction(target, spell.Delay > 0 ? spell.Delay : 0.25f, spell.Range);
                 if (pred.Hitchance >= HitChance.High && pred.UnitPosition.Distance(Player.ServerPosition) <= spell.Range)
                 {
                     spell.Cast();

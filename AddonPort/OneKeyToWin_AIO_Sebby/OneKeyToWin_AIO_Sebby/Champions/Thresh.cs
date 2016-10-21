@@ -4,22 +4,15 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Thresh
+    class Thresh : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        private Spell E, Epush, Q, R, W;
+        private Spell Epush;
         private static Obj_AI_Base Marked;
-        public AIHeroClient Player { get { return ObjectManager.Player; } }
 
-        public void LoadOKTW()
+        public Thresh()
         {
             Q = new Spell(SpellSlot.Q, 1075);
             W = new Spell(SpellSlot.W, 950);
@@ -71,13 +64,13 @@ namespace OneKeyToWin_AIO_Sebby.Champions
 
             Config.SubMenu(Player.ChampionName).AddItem(new MenuItem("AACombo", "Disable AA if can use E", true).SetValue(true));
 
-            Game.OnTick += Game_OnGameUpdate;
+            Game.OnUpdate += Game_OnGameUpdate;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
             Interrupter2.OnInterruptableTarget += Interrupter2_OnInterruptableTarget;
             Drawing.OnDraw += Drawing_OnDraw;
-            Obj_AI_Base.OnBuffGain += Obj_AI_Base_OnBuffAdd;
-            Obj_AI_Base.OnBuffLose += Obj_AI_Base_OnBuffRemove;
-
+            Obj_AI_Base.OnBuffGain += Obj_AI_Base_OnBuffGain;
+            Obj_AI_Base.OnBuffLose += Obj_AI_Base_OnBuffLose;
+            
             TacticalMap.OnPing += Game_OnPing;
         }
 
@@ -103,7 +96,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
         }
 
 
-        private void Obj_AI_Base_OnBuffRemove(Obj_AI_Base sender, Obj_AI_BaseBuffLoseEventArgs args)
+        private void Obj_AI_Base_OnBuffLose(Obj_AI_Base sender, Obj_AI_BaseBuffLoseEventArgs args)
         {
             if (sender.IsEnemy && args.Buff.Name == "ThreshQ")
             {
@@ -111,7 +104,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             }
         }
 
-        private void Obj_AI_Base_OnBuffAdd(Obj_AI_Base sender, Obj_AI_BaseBuffGainEventArgs args)
+        private void Obj_AI_Base_OnBuffGain(Obj_AI_Base sender, Obj_AI_BaseBuffGainEventArgs args)
         {
             if (sender.IsEnemy && args.Buff.Name == "ThreshQ")
             {
@@ -180,7 +173,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                         {
                             if (Marked.Distance(ally.ServerPosition) > 800 && Player.Distance(ally.ServerPosition) > 600)
                             {
-                                CastW(LeagueSharp.Common.Prediction.GetPrediction(ally, 1f).CastPosition);
+                                CastW(Prediction.GetPrediction(ally, 1f).CastPosition);
                             }
                         }
                     }
@@ -206,7 +199,6 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             var t = TargetSelector.GetTarget(E.Range, TargetSelector.DamageType.Physical);
             if (t.IsValidTarget()  && OktwCommon.CanMove(t) && !Marked.IsValidTarget())
             {
-                
                 if (Program.Combo)
                 {
                     if (Player.Distance(t) > Config.Item("Emin", true).GetValue<Slider>().Value)

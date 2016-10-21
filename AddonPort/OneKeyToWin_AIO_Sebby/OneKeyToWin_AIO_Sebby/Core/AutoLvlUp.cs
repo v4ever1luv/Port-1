@@ -6,17 +6,12 @@ using System.Threading.Tasks;
 using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Core
 {
 
-    class AutoLvlUp
+    class AutoLvlUp : Program
     {
-        private Menu Config = Program.Config;
         int lvl1, lvl2, lvl3, lvl4;
         public void LoadOKTW()
         {
@@ -27,7 +22,7 @@ namespace OneKeyToWin_AIO_Sebby.Core
             Config.SubMenu("AutoLvlUp OKTW©").AddItem(new MenuItem("4", "4", true).SetValue(new StringList(new[] { "Q", "W", "E", "R" }, 1)));
             Config.SubMenu("AutoLvlUp OKTW©").AddItem(new MenuItem("LvlStart", "Auto LVL start", true).SetValue(new Slider(2, 6, 1)));
             
-            Game.OnTick += Game_OnGameUpdate;
+            Game.OnUpdate += Game_OnGameUpdate;
             Obj_AI_Base.OnLevelUp +=Obj_AI_Base_OnLevelUp;
             Drawing.OnDraw += Drawing_OnDraw;
         }

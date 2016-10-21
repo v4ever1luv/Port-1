@@ -3,11 +3,6 @@ using System.Linq;
 using LeagueSharp.Common;
 using EloBuddy;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
-using Damage = LeagueSharp.Common.Damage;
 
 namespace OneKeyToWin_AIO_Sebby
 {
@@ -15,7 +10,7 @@ namespace OneKeyToWin_AIO_Sebby
     class Activator
     {
         private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
+        public static Orbwalking.Orbwalker Orbwalker;
         private AIHeroClient Player { get { return ObjectManager.Player; } }
 
 
@@ -50,7 +45,7 @@ namespace OneKeyToWin_AIO_Sebby
             GLP800= new Items.Item(3030, 800f),
 
             //def
-            FaceOfTheMountain = new Items.Item(3401, 600f),
+        FaceOfTheMountain = new Items.Item(3401, 600f),
             Zhonya = new Items.Item(3157, 0),
             Seraph = new Items.Item(3040, 0),
             Solari = new Items.Item(3190, 600f),
@@ -59,14 +54,14 @@ namespace OneKeyToWin_AIO_Sebby
         public void LoadOKTW()
         {
 
-            //teleport = Player.GetSpellSlot("SummonerTeleport");
-            heal = EloBuddy.Player.Instance.GetSpellSlotFromName("summonerheal");
-            barrier = EloBuddy.Player.Instance.GetSpellSlotFromName("SummonerBarrier");
-            ignite = EloBuddy.Player.Instance.GetSpellSlotFromName("summonerdot");
-            exhaust = EloBuddy.Player.Instance.GetSpellSlotFromName("SummonerExhaust");
-            flash = EloBuddy.Player.Instance.GetSpellSlotFromName("summonerflash");
-            cleanse = EloBuddy.Player.Instance.GetSpellSlotFromName("SummonerBoost");
-            smite = EloBuddy.Player.Instance.GetSpellSlotFromName("summonersmite");
+            teleport = Player.GetSpellSlot("SummonerTeleport");
+            heal = Player.GetSpellSlot("summonerheal");
+            barrier = Player.GetSpellSlot("summonerbarrier");
+            ignite = Player.GetSpellSlot("summonerdot");
+            exhaust = Player.GetSpellSlot("summonerexhaust");
+            flash = Player.GetSpellSlot("summonerflash");
+            cleanse = Player.GetSpellSlot("SummonerBoost");
+            smite = Player.GetSpellSlot("summonersmite");
 
             if (smite == SpellSlot.Unknown) { smite = Player.GetSpellSlot("itemsmiteaoe"); }
             if (smite == SpellSlot.Unknown) { smite = Player.GetSpellSlot("s5_summonersmiteplayerganker"); }
@@ -111,7 +106,6 @@ namespace OneKeyToWin_AIO_Sebby
             {
                 Config.SubMenu("Activator OKTW©").SubMenu("Summoners").AddItem(new MenuItem("Ignite", "Ignite").SetValue(true));
             }
-
             if (cleanse != SpellSlot.Unknown)
             {
                 Config.SubMenu("Activator OKTW©").SubMenu("Summoners").AddItem(new MenuItem("Cleanse", "Cleanse").SetValue(true));
@@ -135,11 +129,11 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("Protobelt").AddItem(new MenuItem("Protobelt", "Protobelt").SetValue(true));
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("Protobelt").AddItem(new MenuItem("ProtobeltKS", "Protobelt KS").SetValue(true));
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("Protobelt").AddItem(new MenuItem("ProtobeltCombo", "Protobelt always in combo").SetValue(true));
-            
+
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("GLP800").AddItem(new MenuItem("GLP800", "GLP800").SetValue(true));
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("GLP800").AddItem(new MenuItem("GLP800KS", "GLP800 KS").SetValue(true));
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("GLP800").AddItem(new MenuItem("GLP800Combo", "GLP800 always in combo").SetValue(true));
-            
+
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("Youmuus").AddItem(new MenuItem("Youmuus", "Youmuus").SetValue(true));
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("Youmuus").AddItem(new MenuItem("YoumuusR", "TwitchR, AsheQ").SetValue(true));
             Config.SubMenu("Activator OKTW©").SubMenu("Offensives").SubMenu("Youmuus").AddItem(new MenuItem("YoumuusKS", "Youmuus KS").SetValue(true));
@@ -180,37 +174,11 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu("Activator OKTW©").SubMenu("Cleansers").SubMenu("Buff type").AddItem(new MenuItem("Suppression", "Suppression").SetValue(true));
             Config.SubMenu("Activator OKTW©").SubMenu("Cleansers").SubMenu("Buff type").AddItem(new MenuItem("Taunt", "Taunt").SetValue(true));
             Config.SubMenu("Activator OKTW©").SubMenu("Cleansers").SubMenu("Buff type").AddItem(new MenuItem("Blind", "Blind").SetValue(true));
-            Game.OnUpdate += new GameUpdate(Game_OnGameUpdate);
-            Orbwalking.AfterAttack += new Orbwalking.AfterAttackEvenH(Orbwalking_AfterAttack);
-            Spellbook.OnCastSpell += new SpellbookCastSpell(Spellbook_OnCastSpell);
-            Obj_AI_Base.OnProcessSpellCast += new Obj_AI_ProcessSpellCast( Obj_AI_Base_OnProcessSpellCast);
+            Game.OnUpdate += Game_OnGameUpdate;
+            Orbwalking.AfterAttack += Orbwalking_AfterAttack;
+            Spellbook.OnCastSpell += Spellbook_OnCastSpell;
+            Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
             //Drawing.OnDraw += Drawing_OnDraw;
-        }
-
-        private void Game_OnGameUpdate(EventArgs args)
-        {
-            if (Player.InFountain() || Player.IsRecalling() || Player.IsDead)
-            {
-                return;
-            }
-
-            Cleansers();
-            Smite();
-            Survival();
-
-            if (!Program.LagFree(0))
-                return;
-
-
-            if (Config.Item("pots").GetValue<bool>())
-                PotionManagement();
-
-            Ignite();
-            //Teleport();
-            Exhaust();
-            Offensive();
-            Defensive();
-            ZhonyaCast();
         }
 
         private void Orbwalking_AfterAttack(AttackableUnit unit, AttackableUnit target)
@@ -218,7 +186,6 @@ namespace OneKeyToWin_AIO_Sebby
             if (target is AIHeroClient && Config.Item("HydraTitanic").GetValue<bool>() && HydraTitanic.IsReady() && target.IsValid<AIHeroClient>())
             {
                 HydraTitanic.Cast();
-                Orbwalking.ResetAutoAttackTimer();
             }
         }
 
@@ -265,7 +232,7 @@ namespace OneKeyToWin_AIO_Sebby
                     }
 
                     if (ally.Health - dmg < ally.CountEnemiesInRange(700) * ally.Level * 40)
-                        EloBuddy.Player.Instance.Spellbook.CastSpell(exhaust, sender);
+                        Player.Spellbook.CastSpell(exhaust, sender);
                 }
             }
         }
@@ -296,9 +263,9 @@ namespace OneKeyToWin_AIO_Sebby
                         {
                             var value = 95 + Player.Level * 20;
                             if (dmg > value && Player.HealthPercent < 50)
-                                EloBuddy.Player.Instance.Spellbook.CastSpell(barrier, Player);
+                                Player.Spellbook.CastSpell(barrier, Player);
                             else if (Player.Health - dmg < enemys * Player.Level * 20)
-                                EloBuddy.Player.Instance.Spellbook.CastSpell(barrier, Player);
+                                Player.Spellbook.CastSpell(barrier, Player);
                             else if (Player.Health - dmg < Player.Level * 10)
                                 Seraph.Cast();
                         }
@@ -334,6 +301,7 @@ namespace OneKeyToWin_AIO_Sebby
                 }
             }
 
+
             if (!Solari.IsReady() && !FaceOfTheMountain.IsReady() && !CanUse(heal) )
                 return;
 
@@ -350,9 +318,9 @@ namespace OneKeyToWin_AIO_Sebby
                         return;
 
                     if (ally.Health - dmg < enemys * ally.Level * 15)
-                        EloBuddy.Player.Instance.Spellbook.CastSpell(heal, ally);
+                        Player.Spellbook.CastSpell(heal, ally);
                     else if (ally.Health - dmg < ally.Level * 10)
-                       EloBuddy.Player.Instance.Spellbook.CastSpell(heal, ally);
+                       Player.Spellbook.CastSpell(heal, ally);
                 }
 
                 if (Config.Item("Solari").GetValue<bool>() && Solari.IsReady() && Player.Distance(ally.ServerPosition) < Solari.Range)
@@ -394,27 +362,30 @@ namespace OneKeyToWin_AIO_Sebby
             }
         }
 
-        /*
-        private void Teleport()
+        private void Game_OnGameUpdate(EventArgs args)
         {
-            if (CanUse(teleport) && !Player.HasBuff("teleport"))
+            if (Player.InFountain() || Player.IsRecalling() || Player.IsDead)
             {
-                foreach (var ally in HeroManager.Allies.Where(ally => ally.IsValid && !ally.IsDead  && ally.CountEnemiesInRange(1000) > 0 ))
-                {
-                    foreach (var enemy in HeroManager.Enemies.Where(enemy => enemy.IsValid && !enemy.IsDead))
-                    {
-                        var distanceEA = enemy.Distance(ally);
-                        if (distanceEA < 1000)
-                        {
-                            foreach (var obj in ObjectManager.Get<Obj_AI_Minion>().Where(obj => obj.IsAlly &&  distanceEA < obj.Position.Distance(ally.Position)))
-                            {
-                                EloBuddy.Player.Instance.Spellbook.CastSpell(teleport, obj);
-                            }
-                        }
-                    }
-                }
+                return;
             }
-        }//*/
+
+            Cleansers();
+            Smite();
+            Survival();
+
+            if (!Program.LagFree(0))
+                return;
+
+            if (Config.Item("pots").GetValue<bool>())
+                PotionManagement();
+            
+            Ignite();
+            //Teleport();
+            Exhaust();
+            Offensive();
+            Defensive();
+            ZhonyaCast();
+        }
 
         private void Smite()
         {
@@ -427,12 +398,12 @@ namespace OneKeyToWin_AIO_Sebby
                     if (enemy.IsValidTarget())
                     {
                         if(enemy.HealthPercent < 50 && Config.Item("SmiteEnemy").GetValue<bool>())
-                            EloBuddy.Player.Instance.Spellbook.CastSpell(smite, enemy);
+                            Player.Spellbook.CastSpell(smite, enemy);
                         
                         var smiteDmg = Player.GetSummonerSpellDamage(enemy, Damage.SummonerSpell.Smite);
                         
                         if ( Config.Item("SmiteEnemyKS").GetValue<bool>() && enemy.Health - OktwCommon.GetIncomingDamage(enemy) < smiteDmg)
-                            EloBuddy.Player.Instance.Spellbook.CastSpell(smite, enemy);
+                            Player.Spellbook.CastSpell(smite, enemy);
                     }
                 }
                 if (mobs.Count > 0 && Config.Item("Smite").GetValue<KeyBind>().Active)
@@ -448,7 +419,7 @@ namespace OneKeyToWin_AIO_Sebby
                             && mob.Health <= Player.GetSummonerSpellDamage(mob, Damage.SummonerSpell.Smite))
                         {
   
-                            EloBuddy.Player.Instance.Spellbook.CastSpell(smite, mob);
+                            Player.Spellbook.CastSpell(smite, mob);
                         }
                     }
                 }
@@ -463,7 +434,7 @@ namespace OneKeyToWin_AIO_Sebby
                 {
                     foreach (var enemy in HeroManager.Enemies.Where(enemy => enemy.IsValidTarget(650) && enemy.IsChannelingImportantSpell()))
                     {
-                        EloBuddy.Player.Instance.Spellbook.CastSpell(exhaust, enemy);
+                        Player.Spellbook.CastSpell(exhaust, enemy);
                     }
                 }
 
@@ -472,7 +443,7 @@ namespace OneKeyToWin_AIO_Sebby
                     var t = TargetSelector.GetTarget(650, TargetSelector.DamageType.Physical);
                     if (t.IsValidTarget())
                     {
-                        EloBuddy.Player.Instance.Spellbook.CastSpell(exhaust, t);
+                        Player.Spellbook.CastSpell(exhaust, t);
                     }
                 }
             }
@@ -495,21 +466,21 @@ namespace OneKeyToWin_AIO_Sebby
                         {
                             var enemyPred = Prediction.GetPrediction(enemy, 0.1f).CastPosition;
                             if (Player.ServerPosition.Distance(enemyPred) > 500 || NavMesh.IsWallOfGrass(enemyPred, 0))
-                                EloBuddy.Player.Instance.Spellbook.CastSpell(ignite, enemy);
+                                Player.Spellbook.CastSpell(ignite, enemy);
                         }
 
                         if (enemy.PercentLifeStealMod > 10)
-                            EloBuddy.Player.Instance.Spellbook.CastSpell(ignite, enemy);
+                            Player.Spellbook.CastSpell(ignite, enemy);
 
                         if (enemy.HasBuff("RegenerationPotion") || enemy.HasBuff("ItemMiniRegenPotion") || enemy.HasBuff("ItemCrystalFlask"))
-                            EloBuddy.Player.Instance.Spellbook.CastSpell(ignite, enemy);
+                            Player.Spellbook.CastSpell(ignite, enemy);
 
                         if (enemy.Health > Player.Health)
-                            EloBuddy.Player.Instance.Spellbook.CastSpell(ignite, enemy);
+                            Player.Spellbook.CastSpell(ignite, enemy);
                     }
                 }
             }
-        }//*/
+        }
 
         private void ZhonyaCast()
         {
@@ -602,9 +573,8 @@ namespace OneKeyToWin_AIO_Sebby
                 LeagueSharp.Common.Utility.DelayAction.Add(Config.Item("CSSdelay").GetValue<Slider>().Value, () => Mercurial.Cast());
             else if (Dervish.IsReady())
                 LeagueSharp.Common.Utility.DelayAction.Add(Config.Item("CSSdelay").GetValue<Slider>().Value, () => Dervish.Cast());
-
             else if(cleanse != SpellSlot.Unknown && cleanse.IsReady() && Config.Item("Cleanse").GetValue<bool>())
-                LeagueSharp.Common.Utility.DelayAction.Add(Config.Item("CSSdelay").GetValue<Slider>().Value, () => EloBuddy.Player.Instance.Spellbook.CastSpell(cleanse, Player));//*/
+                LeagueSharp.Common.Utility.DelayAction.Add(Config.Item("CSSdelay").GetValue<Slider>().Value, () => Player.Spellbook.CastSpell(cleanse, Player));
         }
 
         private void Defensive()
@@ -630,18 +600,18 @@ namespace OneKeyToWin_AIO_Sebby
                         Botrk.Cast(t);
                 }
             }
-            
+
             if (GLP800.IsReady() && Config.Item("GLP800").GetValue<bool>())
             {
                 var t = TargetSelector.GetTarget(GLP800.Range, TargetSelector.DamageType.Magical);
                 if (t.IsValidTarget())
                 {
                     if (Config.Item("GLP800KS").GetValue<bool>() && Player.CalcDamage(t, Damage.DamageType.Magical, 200 + Player.FlatMagicDamageMod * 0.35) > t.Health - OktwCommon.GetIncomingDamage(t))
-                        GLP800.Cast(LeagueSharp.Common.Prediction.GetPrediction(t, 0.5f).CastPosition);
+                        GLP800.Cast(Prediction.GetPrediction(t, 0.5f).CastPosition);
                     if (Config.Item("GLP800Combo").GetValue<bool>() && Program.Combo)
                     {
                         Program.debug("PRO");
-                        GLP800.Cast(LeagueSharp.Common.Prediction.GetPrediction(t, 0.5f).CastPosition);
+                        GLP800.Cast(Prediction.GetPrediction(t, 0.5f).CastPosition);
                     }
                 }
             }
@@ -652,11 +622,11 @@ namespace OneKeyToWin_AIO_Sebby
                 if (t.IsValidTarget())
                 {
                     if (Config.Item("ProtobeltKS").GetValue<bool>() && Player.CalcDamage(t, Damage.DamageType.Magical, 150 + Player.FlatMagicDamageMod * 0.35) > t.Health - OktwCommon.GetIncomingDamage(t))
-                        Protobelt.Cast(LeagueSharp.Common.Prediction.GetPrediction(t, 0.5f).CastPosition);
+                        Protobelt.Cast(Prediction.GetPrediction(t, 0.5f).CastPosition);
                     if (Config.Item("ProtobeltCombo").GetValue<bool>() && Program.Combo)
                     {
                         Program.debug("PRO");
-                        Protobelt.Cast(LeagueSharp.Common.Prediction.GetPrediction(t, 0.5f).CastPosition);
+                        Protobelt.Cast(Prediction.GetPrediction(t, 0.5f).CastPosition);
                     }
                 }
             }
@@ -737,7 +707,7 @@ namespace OneKeyToWin_AIO_Sebby
 
         private bool CanUse(SpellSlot sum)
         {
-            if (sum != SpellSlot.Unknown && ObjectManager.Player.Spellbook.CanUseSpell(sum) == SpellState.Ready)
+            if (sum != SpellSlot.Unknown && Player.Spellbook.CanUseSpell(sum) == SpellState.Ready)
                 return true;
             else
                 return false;

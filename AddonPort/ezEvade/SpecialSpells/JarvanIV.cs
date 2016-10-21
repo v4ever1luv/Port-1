@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 
 using EloBuddy;
-//using EloBuddy.SDK;
 using LeagueSharp.Common;
 using SharpDX;
 
@@ -28,11 +27,11 @@ namespace ezEvade.SpecialSpells
                     return;
                 }
 
-                Obj_AI_Base.OnProcessSpellCast += new Obj_AI_ProcessSpellCast(ProcessSpell_JarvanIVDemacianStandard);
+                AIHeroClient.OnProcessSpellCast += ProcessSpell_JarvanIVDemacianStandard;
 
-                SpellDetector.OnProcessSpecialSpell += new SpellDetector.OnProcessSpecialSpellHandler(ProcessSpell_JarvanIVDragonStrike);
-                Obj_AI_Minion.OnCreate += new GameObjectCreate(OnCreateObj_JarvanIVDragonStrike);
-                Obj_AI_Minion.OnDelete += new GameObjectDelete(OnDeleteObj_JarvanIVDragonStrike);
+                SpellDetector.OnProcessSpecialSpell += ProcessSpell_JarvanIVDragonStrike;
+                Obj_AI_Minion.OnCreate += OnCreateObj_JarvanIVDragonStrike;
+                Obj_AI_Minion.OnDelete += OnDeleteObj_JarvanIVDragonStrike;
             }            
         }
 

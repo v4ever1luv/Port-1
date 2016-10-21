@@ -3,10 +3,6 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Core
 {
@@ -15,7 +11,7 @@ namespace OneKeyToWin_AIO_Sebby.Core
         public AIHeroClient Target;
         private static AIHeroClient Player { get { return ObjectManager.Player; } }
         private static Menu Config = Program.Config;
-        private static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
+        private static Orbwalking.Orbwalker Orbwalker;
         private string MissileName, MissileReturnName;
         private Spell QWER;
         public MissileClient Missile;
@@ -30,11 +26,11 @@ namespace OneKeyToWin_AIO_Sebby.Core
             MissileReturnName = missileReturnName;
             QWER = qwer;
 
-            GameObject.OnCreate += new GameObjectCreate(SpellMissile_OnCreateOld);
-            GameObject.OnDelete += new GameObjectDelete(Obj_SpellMissile_OnDelete);
-            Obj_AI_Base.OnProcessSpellCast += new Obj_AI_ProcessSpellCast(Obj_AI_Base_OnProcessSpellCast);
-            Game.OnUpdate += new GameUpdate(Game_OnGameUpdate);
-            Drawing.OnDraw += new DrawingDraw(Drawing_OnDraw);
+            GameObject.OnCreate += SpellMissile_OnCreateOld;
+            GameObject.OnDelete += Obj_SpellMissile_OnDelete;
+            Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
+            Game.OnUpdate += Game_OnGameUpdate;
+            Drawing.OnDraw += Drawing_OnDraw;
         }
 
         private void Drawing_OnDraw(EventArgs args)
@@ -118,6 +114,7 @@ namespace OneKeyToWin_AIO_Sebby.Core
                     {
                         var cursorToTarget = Target.Distance(Player.Position.Extend(Game.CursorPos, 100));
                         var ext = finishPosition.Extend(Target.ServerPosition, cursorToTarget + misToTarget);
+
                         if (ext.Distance(Player.Position) < 800 && ext.CountEnemiesInRange(400) < 2)
                         {
                             if (Config.Item("drawHelper", true).GetValue<bool>())

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpDX;
 using EloBuddy;
-//using EloBuddy.SDK;
 using LeagueSharp.Common;
 
 namespace SebbyLib.Prediction
@@ -125,7 +124,7 @@ namespace SebbyLib.Prediction
 
         internal float RealRadius
         {
-            get { return UseBoundingRadius ? Radius + Unit.BoundingRadius   : Radius; }
+            get { return UseBoundingRadius ? Radius + Unit.BoundingRadius : Radius; }
         }
     }
 
@@ -661,10 +660,9 @@ namespace SebbyLib.Prediction
             var pLength = path.PathLength();
 
             //Skillshots with only a delay
-            if (pLength >= input.Delay * speed - input.RealRadius && Math.Abs(input.Speed - float.MaxValue) < float.Epsilon)
+            var tDistance = input.Delay * speed - input.RealRadius;
+            if (pLength >= tDistance && Math.Abs(input.Speed - float.MaxValue) < float.Epsilon)
             {
-                var tDistance = input.Delay * speed - input.RealRadius;
-
                 for (var i = 0; i < path.Count - 1; i++)
                 {
                     var a = path[i];
@@ -696,10 +694,9 @@ namespace SebbyLib.Prediction
             }
 
             //Skillshot with a delay and speed.
-            if (pLength >= input.Delay * speed - input.RealRadius &&
-                Math.Abs(input.Speed - float.MaxValue) > float.Epsilon)
+            if (pLength >= tDistance && Math.Abs(input.Speed - float.MaxValue) > float.Epsilon)
             {
-                var d = input.Delay * speed - input.RealRadius;
+                var d = tDistance;
                 if (input.Type == SkillshotType.SkillshotLine || input.Type == SkillshotType.SkillshotCone)
                 {
                     if (input.From.Distance(input.Unit.ServerPosition, true) < 200 * 200)
@@ -717,7 +714,7 @@ namespace SebbyLib.Prediction
                     var tB = a.Distance(b) / speed;
                     var direction = (b - a).Normalized();
                     a = a - speed * tT * direction;
-                    var sol = EloBuddy.SDK.Geometry.VectorMovementCollision(a, b, speed, input.From.To2D(), input.Speed, tT);
+                    var sol = Geometry.VectorMovementCollision(a, b, speed, input.From.To2D(), input.Speed, tT);
                     var t = (float)sol[0];
                     var pos = (Vector2)sol[1];
 
@@ -727,7 +724,7 @@ namespace SebbyLib.Prediction
                             break;
                         var p = pos + input.RealRadius * direction;
 
-                        if (input.Type == SkillshotType.SkillshotLine)
+                        if (input.Type == SkillshotType.SkillshotLine && false)
                         {
                             var alpha = (input.From.To2D() - p).AngleBetween(a - b);
                             if (alpha > 30 && alpha < 180 - 30)
@@ -947,7 +944,7 @@ namespace SebbyLib.Prediction
             internal static Vector2[] GetCandidates(Vector2 from, Vector2 to, float radius, float range)
             {
                 var middlePoint = (from + to) / 2;
-                var intersections = LeagueSharp.Common.Geometry.CircleCircleIntersection(
+                var intersections = Geometry.CircleCircleIntersection(
                     from, middlePoint, radius, from.Distance(middlePoint));
 
                 if (intersections.Length > 1)
@@ -1249,9 +1246,9 @@ namespace SebbyLib.Prediction
                 UnitTrackerInfoList.Add(new UnitTrackerInfo() { NetworkId = hero.NetworkId, AaTick = Utils.TickCount, StopMoveTick = Utils.TickCount, NewPathTick = Utils.TickCount, SpecialSpellFinishTick = Utils.TickCount, LastInvisableTick = Utils.TickCount });
             }
 
-            Obj_AI_Base.OnProcessSpellCast += new Obj_AI_ProcessSpellCast(Obj_AI_Base_OnProcessSpellCast);
-            Obj_AI_Base.OnNewPath += new Obj_AI_BaseNewPath(AIHeroClient_OnNewPath);
-            //AttackableUnit.OnFloatPropertyChange += Obj_AI_Base_OnEnterLocalVisiblityClient;
+            Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
+            Obj_AI_Base.OnNewPath += AIHeroClient_OnNewPath;
+            //AttackableUnit.OnEnterLocalVisiblityClient += Obj_AI_Base_OnEnterLocalVisiblityClient;
         }
 
         private static void Obj_AI_Base_OnEnterLocalVisiblityClient(AttackableUnit sender, EventArgs args)

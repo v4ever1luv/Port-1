@@ -5,27 +5,15 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
-namespace OneKeyToWin_AIO_Sebby
+namespace OneKeyToWin_AIO_Sebby.Champions
 {
-
-    class Jinx
+    class Jinx : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        public Spell Q, W, E, R;
-        public float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-
         public double lag = 0, WCastTime = 0, QCastTime = 0, DragonTime = 0, grabTime = 0;
         public float DragonDmg = 0;
 
-        public AIHeroClient Player { get { return ObjectManager.Player; } }
-
-        public void LoadOKTW()
+        public Jinx()
         {
             Q = new Spell(SpellSlot.Q);
             W = new Spell(SpellSlot.W, 1500f);
@@ -36,16 +24,6 @@ namespace OneKeyToWin_AIO_Sebby
             E.SetSkillshot(1.2f, 100f, 1750f, false, SkillshotType.SkillshotCircle);
             R.SetSkillshot(0.7f, 140f, 1500f, false, SkillshotType.SkillshotLine);
 
-            LoadMenuOKTW();
-            Game.OnTick += Game_OnUpdate;
-            Orbwalking.BeforeAttack += BeforeAttack;
-            Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
-            AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
-            Drawing.OnDraw += Drawing_OnDraw;
-        }
-
-        private void LoadMenuOKTW()
-        {
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("noti", "Show notification", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("semi", "Semi-manual R target", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("qRange", "Q range", true).SetValue(false));
@@ -54,12 +32,11 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("rRange", "R range", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("onlyRdy", "Draw only ready spells", true).SetValue(true));
 
-            Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("autoW", "Auto W", true).SetValue(true));
-            foreach (var enemy in HeroManager.Enemies)
-                Config.SubMenu(Player.ChampionName).SubMenu("W Config").SubMenu("Harras").AddItem(new MenuItem("haras" + enemy.ChampionName, enemy.ChampionName).SetValue(true));
-
             Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("autoQ", "Auto Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("Qharras", "Harass Q", true).SetValue(true));
+
+            Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("autoW", "Auto W", true).SetValue(true));
+            Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("Wharras", "Harass Q", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("E Config").AddItem(new MenuItem("autoE", "Auto E on CC", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("E Config").AddItem(new MenuItem("comboE", "Auto E in Combo BETA", true).SetValue(true));
@@ -77,8 +54,12 @@ namespace OneKeyToWin_AIO_Sebby
 
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQout", "Q farm out range AA", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQ", "Q LaneClear Q", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("Mana", "LaneClear Q Mana", true).SetValue(new Slider(80, 100, 30)));
 
+            Game.OnUpdate += Game_OnUpdate;
+            Orbwalking.BeforeAttack += BeforeAttack;
+            Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
+            AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
+            Drawing.OnDraw += Drawing_OnDraw;
         }
 
         private void BeforeAttack(Orbwalking.BeforeAttackEventArgs args)
@@ -237,7 +218,6 @@ namespace OneKeyToWin_AIO_Sebby
                         return;
                     }
                 }
-                
 
                 if (Player.CountEnemiesInRange(bonusRange()) == 0)
                 {
@@ -246,9 +226,9 @@ namespace OneKeyToWin_AIO_Sebby
                         foreach (var enemy in HeroManager.Enemies.Where(enemy => enemy.IsValidTarget(W.Range) && GetRealDistance(enemy) > bonusRange() ).OrderBy(enemy => enemy.Health))
                             Program.CastSpell(W, enemy);
                     }
-                    else if (Program.Farm && Player.Mana > RMANA + EMANA + WMANA + WMANA + 40 && OktwCommon.CanHarras())
+                    else if (Program.Farm && Player.Mana > RMANA + EMANA + WMANA + WMANA + 40 && OktwCommon.CanHarras() && Config.Item("Wharras", true).GetValue<bool>())
                     {
-                        foreach (var enemy in HeroManager.Enemies.Where(enemy => enemy.IsValidTarget(W.Range) && Config.Item("haras" + enemy.ChampionName).GetValue<bool>()))
+                        foreach (var enemy in HeroManager.Enemies.Where(enemy => enemy.IsValidTarget(W.Range) && Config.Item("Harass" + enemy.ChampionName).GetValue<bool>()))
                             Program.CastSpell(W, enemy);
                     }
                 }
@@ -360,7 +340,7 @@ namespace OneKeyToWin_AIO_Sebby
         private float GetRealDistance(Obj_AI_Base target)
         {
             
-            return Player.ServerPosition.Distance(LeagueSharp.Common.Prediction.GetPrediction(target, 0.05f).CastPosition) + Player.BoundingRadius + target.BoundingRadius;
+            return Player.ServerPosition.Distance(Prediction.GetPrediction(target, 0.05f).CastPosition) + Player.BoundingRadius + target.BoundingRadius;
         }
 
         public bool ShouldUseE(string SpellName)
@@ -423,7 +403,7 @@ namespace OneKeyToWin_AIO_Sebby
                         if (DragonDmg - mob.Health > 0)
                         {
                             var timeTravel = GetUltTravelTime(Player, R.Speed, R.Delay, mob.Position);
-                            var timeR = (mob.Health - Player.CalcDamage(mob, LeagueSharp.Common.Damage.DamageType.Physical, (250 + (100 * R.Level)) + Player.FlatPhysicalDamageMod + 300)) / (DmgSec / 4);
+                            var timeR = (mob.Health - Player.CalcDamage(mob, Damage.DamageType.Physical, (250 + (100 * R.Level)) + Player.FlatPhysicalDamageMod + 300)) / (DmgSec / 4);
                             //debug("timeTravel " + timeTravel + "timeR " + timeR + "d " + ((150 + (100 * R.Level + 200) + Player.FlatPhysicalDamageMod)));
                             if (timeTravel > timeR)
                                 R.Cast(mob.Position);
@@ -466,13 +446,13 @@ namespace OneKeyToWin_AIO_Sebby
             }
 
             QMANA = 10;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = WMANA - Player.PARRegenRate * W.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         public static void drawLine(Vector3 pos1, Vector3 pos2, int bold, System.Drawing.Color color)

@@ -4,24 +4,16 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Ahri : Program
+    class Ahri : Base
     {
         private static GameObject QMissile = null, EMissile = null;
         public AIHeroClient Qtarget = null;
         public static Core.MissileReturn missileManager;
-        private float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-        public AIHeroClient Player
-        {
-            get { return ObjectManager.Player; }
-        }
-        public void LoadOKTW()
+
+        public Ahri()
         {
             Q = new Spell(SpellSlot.Q, 870);
             W = new Spell(SpellSlot.W, 580);
@@ -42,14 +34,14 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("Qhelp", "Show Q helper", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("autoQ", "Auto Q", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("harrasQ", "Harass Q", true).SetValue(true));
+            Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("harassQ", "Harass Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("aimQ", "Auto aim Q missile", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("autoW", "Auto W", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("harrasW", "Harass W", true).SetValue(true));
+            Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("harassW", "Harass W", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("E Config").AddItem(new MenuItem("autoE", "Auto E", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("E Config").AddItem(new MenuItem("harrasE", "Harras E", true).SetValue(true));
+            Config.SubMenu(Player.ChampionName).SubMenu("E Config").AddItem(new MenuItem("harassE", "Harass E", true).SetValue(true));
 
             foreach (var enemy in HeroManager.Enemies)
                 Config.SubMenu(Player.ChampionName).SubMenu("E Config").SubMenu("Use E on").AddItem(new MenuItem("Eon" + enemy.ChampionName, enemy.ChampionName ,true).SetValue(true));
@@ -60,17 +52,12 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             Config.SubMenu(Player.ChampionName).SubMenu("R Config").AddItem(new MenuItem("autoR", "R KS ", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("R Config").AddItem(new MenuItem("autoR2", "auto R fight logic + aim Q", true).SetValue(true));
 
-            foreach (var enemy in HeroManager.Enemies)
-                Config.SubMenu(Player.ChampionName).SubMenu("Harras").AddItem(new MenuItem("harras" + enemy.ChampionName, enemy.ChampionName).SetValue(true));
-
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQ", "Lane clear Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmW", "Lane clear W", true).SetValue(false));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("Mana", "LaneClear Mana", true).SetValue(new Slider(80, 100, 0)));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("LCminions", "LaneClear minimum minions", true).SetValue(new Slider(2, 10, 0)));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("jungleQ", "Jungle clear Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("jungleW", "Jungle clear W", true).SetValue(true));
 
-            Game.OnTick += Game_OnGameUpdate;
+            Game.OnUpdate += Game_OnGameUpdate;
             Interrupter2.OnInterruptableTarget += Interrupter2_OnInterruptableTarget;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
             Drawing.OnDraw += Drawing_OnDraw;
@@ -215,17 +202,20 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             {
                 if (Program.Combo && Player.Mana > RMANA + WMANA)
                     W.Cast();
-                else if (Program.Farm && Player.Mana > RMANA + QMANA + WMANA && Config.Item("harrasW", true).GetValue<bool>() && Config.Item("harras" + t.ChampionName).GetValue<bool>())
+                else if (Program.Farm && Player.Mana > RMANA + QMANA + WMANA && Config.Item("harassW", true).GetValue<bool>() && Config.Item("Harass" + t.ChampionName).GetValue<bool>())
                     W.Cast();
                 else if (W.GetDamage(t) + W.GetDamage(t, 1) + Q.GetDamage(t) * 2 > t.Health - OktwCommon.GetIncomingDamage(t))
                     W.Cast();
             }
-            else if (Program.LaneClear && QMissile == null && (Player.ManaPercent > Config.Item("Mana", true).GetValue<Slider>().Value && Config.Item("farmW", true).GetValue<bool>() && Player.Mana > RMANA + WMANA))
+            else if (FarmSpells && QMissile == null && Config.Item("farmW", true).GetValue<bool>())
             {
                 var minionList = Cache.GetMinions(Player.ServerPosition, W.Range, MinionTeam.Enemy);
-                foreach (var minion in minionList.Where(minion =>  minion.Health < W.GetDamage(minion)))
+                if (FarmMinions >= minionList.Count)
                 {
-                    W.Cast();
+                    foreach (var minion in minionList.Where(minion => minion.Health < W.GetDamage(minion)))
+                    {
+                        W.Cast();
+                    }
                 }
             }
         }
@@ -241,7 +231,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                     
                     if (Program.Combo && Player.Mana > RMANA + QMANA)
                         Program.CastSpell(Q, t);
-                    else if (Program.Farm  && Player.Mana > RMANA + WMANA + QMANA + QMANA && Config.Item("harrasQ", true).GetValue<bool>() && Config.Item("harras" + t.ChampionName).GetValue<bool>() && OktwCommon.CanHarras())
+                    else if (Program.Farm  && Player.Mana > RMANA + WMANA + QMANA + QMANA && Config.Item("harassQ", true).GetValue<bool>() && Config.Item("Harass" + t.ChampionName).GetValue<bool>() && OktwCommon.CanHarras())
                         Program.CastSpell(Q, t);
                     else if (Q.GetDamage(t) * 2 + OktwCommon.GetEchoLudenDamage(t) > t.Health - OktwCommon.GetIncomingDamage(t))
                         Q.Cast(t, true);
@@ -252,11 +242,11 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                         Q.Cast(enemy, true);
                 }
             }
-            else if (Program.LaneClear && Player.ManaPercent > Config.Item("Mana", true).GetValue<Slider>().Value && Config.Item("farmQ", true).GetValue<bool>() && Player.Mana > RMANA + QMANA)
+            else if (FarmSpells && Config.Item("farmQ", true).GetValue<bool>())
             {
                 var minionList = Cache.GetMinions(Player.ServerPosition, Q.Range);
                 var farmPosition = Q.GetLineFarmLocation(minionList, Q.Width);
-                if (farmPosition.MinionsHit > Config.Item("LCminions", true).GetValue<Slider>().Value)
+                if (farmPosition.MinionsHit >= FarmMinions)
                     Q.Cast(farmPosition.Position);
             }
         }
@@ -274,7 +264,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             {
                 if (Program.Combo && Player.Mana > RMANA + EMANA && Config.Item("Eon" + t.ChampionName, true).GetValue<bool>())
                     Program.CastSpell(E, t);
-                else if (Program.Farm && Config.Item("harrasE", true).GetValue<bool>() && Config.Item("harras" + t.ChampionName).GetValue<bool>() && Player.Mana > RMANA + EMANA + WMANA + EMANA)
+                else if (Program.Farm && Config.Item("harassE", true).GetValue<bool>() && Config.Item("Harass" + t.ChampionName).GetValue<bool>() && Player.Mana > RMANA + EMANA + WMANA + EMANA)
                     Program.CastSpell(E, t);
                 else if (OktwCommon.GetKsDamage(t, E) > t.Health )
                     Program.CastSpell(E, t);
@@ -319,14 +309,14 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = QMANA - Player.PARRegenRate * Q.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         public static void drawLine(Vector3 pos1, Vector3 pos2, int bold, System.Drawing.Color color)

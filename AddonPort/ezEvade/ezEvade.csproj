@@ -36,10 +36,12 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EloBuddy">
+    <Reference Include="EloBuddy, Version=1.0.0.0, Culture=neutral, PublicKeyToken=7339047cb10f6e86, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>C:\Users\Administrator\AppData\Roaming\EloBuddy\Addons\Libraries\EloBuddy.dll</HintPath>
     </Reference>
-    <Reference Include="EloBuddy.SDK">
+    <Reference Include="EloBuddy.SDK, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6b574a82b1ea937e, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>C:\Users\Administrator\AppData\Roaming\EloBuddy\Addons\Libraries\EloBuddy.SDK.dll</HintPath>
     </Reference>
     <Reference Include="LeagueSharp.Common">
@@ -47,6 +49,9 @@
     </Reference>
     <Reference Include="SharpDX">
       <HintPath>C:\Users\Administrator\AppData\Roaming\EloBuddy\Addons\Libraries\SharpDX.dll</HintPath>
+    </Reference>
+    <Reference Include="SharpDX.Direct3D9">
+      <HintPath>C:\Users\Administrator\AppData\Roaming\EloBuddy\Addons\Libraries\SharpDX.Direct3D9.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -64,7 +69,6 @@
     <Compile Include="Draw\RenderText.cs" />
     <Compile Include="EvadeSpells\SpecialEvadeSpell.cs" />
     <Compile Include="Helpers\AutoSetPing.cs" />
-    <Compile Include="Helpers\CollisionCandidate.cs" />
     <Compile Include="SpecialSpells\Ashe.cs" />
     <Compile Include="SpecialSpells\Azir.cs" />
     <Compile Include="SpecialSpells\ChampionPlugin.cs" />

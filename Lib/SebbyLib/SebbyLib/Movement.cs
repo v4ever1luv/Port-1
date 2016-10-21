@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using SharpDX;
 using EloBuddy;
-//using EloBuddy.SDK;
 using LeagueSharp.Common;
 
 namespace SebbyLib.Movement
@@ -611,7 +610,7 @@ namespace SebbyLib.Movement
                     var tB = a.Distance(b) / speed;
                     var direction = (b - a).Normalized();
                     a = a - speed * tT * direction;
-                    var sol = EloBuddy.SDK.Geometry.VectorMovementCollision(a, b, speed, input.From.To2D(), input.Speed, tT);
+                    var sol = Geometry.VectorMovementCollision(a, b, speed, input.From.To2D(), input.Speed, tT);
                     var t = (float)sol[0];
                     var pos = (Vector2)sol[1];
 
@@ -842,7 +841,7 @@ namespace SebbyLib.Movement
             internal static Vector2[] GetCandidates(Vector2 from, Vector2 to, float radius, float range)
             {
                 var middlePoint = (from + to) / 2;
-                var intersections = LeagueSharp.Common.Geometry.CircleCircleIntersection(
+                var intersections = Geometry.CircleCircleIntersection(
                     from, middlePoint, radius, from.Distance(middlePoint));
 
                 if (intersections.Length > 1)
@@ -1134,8 +1133,8 @@ namespace SebbyLib.Movement
                 UnitTrackerInfoList.Add(new UnitTrackerInfo() { NetworkId = hero.NetworkId, AaTick = Utils.TickCount, StopMoveTick = Utils.TickCount, NewPathTick = Utils.TickCount, SpecialSpellFinishTick = Utils.TickCount, LastInvisableTick = Utils.TickCount });
             }
 
-            Obj_AI_Base.OnProcessSpellCast += new Obj_AI_ProcessSpellCast(Obj_AI_Base_OnProcessSpellCast);
-            Obj_AI_Base.OnNewPath += new Obj_AI_BaseNewPath(AIHeroClient_OnNewPath);
+            Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
+            Obj_AI_Base.OnNewPath += AIHeroClient_OnNewPath;
             //AttackableUnit.OnEnterLocalVisiblityClient += Obj_AI_Base_OnEnterLocalVisiblityClient;
         }
 

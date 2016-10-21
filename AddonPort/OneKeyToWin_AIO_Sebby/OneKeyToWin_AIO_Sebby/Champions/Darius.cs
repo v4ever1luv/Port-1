@@ -2,24 +2,13 @@
 using System.Linq;
 using EloBuddy;
 using LeagueSharp.Common;
-using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Darius
+    class Darius : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        public Spell Q, W, E, R;
-        private float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-        private AIHeroClient Player { get { return ObjectManager.Player; } }
-
-        public void LoadOKTW()
+        public Darius()
         {
             Q = new Spell(SpellSlot.Q, 400);
             W = new Spell(SpellSlot.W, 145);
@@ -28,24 +17,12 @@ namespace OneKeyToWin_AIO_Sebby.Champions
 
             E.SetSkillshot(0.01f, 100f, float.MaxValue, false, SkillshotType.SkillshotLine);
 
-            LoadMenuOKTW();
-
-            Game.OnTick += Game_OnGameUpdate;
-            Drawing.OnDraw += Drawing_OnDraw;
-            Orbwalking.BeforeAttack += BeforeAttack;
-            Orbwalking.AfterAttack += afterAttack;
-            Interrupter.OnPossibleToInterrupt += OnInterruptableSpell;
-        }
-
-        private void LoadMenuOKTW()
-        {
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("qRange", "Q range", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("eRange", "E range", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("rRange", "R range", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("onlyRdy", "Draw when skill rdy", true).SetValue(true));
 
-            
-            Config.SubMenu(Player.ChampionName).SubMenu("Q option").AddItem(new MenuItem("haras", "Harras Q", true).SetValue(true));
+            Config.SubMenu(Player.ChampionName).SubMenu("Q option").AddItem(new MenuItem("Harass", "Harass Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Q option").AddItem(new MenuItem("qOutRange", "Auto Q only out range AA", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("R option").AddItem(new MenuItem("autoR", "Auto R", true).SetValue(true));
@@ -55,6 +32,12 @@ namespace OneKeyToWin_AIO_Sebby.Champions
 
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmW", "Farm W", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQ", "Farm Q", true).SetValue(true));
+
+            Game.OnUpdate += Game_OnGameUpdate;
+            Drawing.OnDraw += Drawing_OnDraw;
+            Orbwalking.BeforeAttack += BeforeAttack;
+            Orbwalking.AfterAttack += afterAttack;
+            Interrupter.OnPossibleToInterrupt += OnInterruptableSpell;
         }
 
         private void OnInterruptableSpell(AIHeroClient unit, InterruptableSpell spell)
@@ -148,7 +131,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                 {
                     if (Player.Mana > RMANA + QMANA && Program.Combo)
                         Q.Cast();
-                    else if (Program.Farm && Player.Mana > RMANA + QMANA + EMANA + WMANA && Config.Item("haras", true).GetValue<bool>())
+                    else if (Program.Farm && Player.Mana > RMANA + QMANA + EMANA + WMANA && Config.Item("Harass", true).GetValue<bool>())
                         Q.Cast();
                 }
 
@@ -156,7 +139,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                     Q.Cast();
             }
             
-            else if (Config.Item("farmQ", true).GetValue<bool>() && Player.Mana > RMANA + QMANA + EMANA + WMANA && Program.LaneClear)
+            else if (Config.Item("farmQ", true).GetValue<bool>() && FarmSpells)
             {
                 var minionsList = Cache.GetMinions(Player.ServerPosition, Q.Range);
 
@@ -229,14 +212,14 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = QMANA - Player.PARRegenRate * Q.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
         
     }

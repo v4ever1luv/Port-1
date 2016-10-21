@@ -4,7 +4,6 @@ using System.Linq;
 using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
-//using EloBuddy.SDK;
 
 namespace SebbyLib
 {
@@ -84,7 +83,7 @@ namespace SebbyLib
 
         public static bool CanHarras()
         {
-            if (!Player.Spellbook.IsAutoAttacking && !Player.UnderTurret(true))// && Orbwalking.CanMove(50))
+            if (!Player.Spellbook.IsAutoAttacking && !Player.UnderTurret(true) && Orbwalking.CanMove(50))
                 return true;
             else
                 return false;
@@ -106,13 +105,13 @@ namespace SebbyLib
             {
                 if (Player.GetBuff("itemmagicshankcharge").Count == 100)
                 {
-                    totalDamage += (float)Player.CalcDamage(target, LeagueSharp.Common.Damage.DamageType.Magical, 100 + 0.1 * Player.FlatMagicDamageMod);
+                    totalDamage += (float)Player.CalcDamage(target, Damage.DamageType.Magical, 100 + 0.1 * Player.FlatMagicDamageMod);
                 }
             }
             return totalDamage;
         }
 
-        public static bool IsSpellHeroCollision(AIHeroClient t, LeagueSharp.Common.Spell QWER, int extraWith = 50)
+        public static bool IsSpellHeroCollision(AIHeroClient t, Spell QWER, int extraWith = 50)
         {
             foreach (var hero in HeroManager.Enemies.FindAll(hero => hero.IsValidTarget(QWER.Range + QWER.Width, true, QWER.RangeCheckFrom) && t.NetworkId != hero.NetworkId))
             {
@@ -156,7 +155,7 @@ namespace SebbyLib
             return false;
         }
 
-        public static float GetKsDamage(AIHeroClient t, LeagueSharp.Common.Spell QWER)
+        public static float GetKsDamage(AIHeroClient t, Spell QWER)
         {
             var totalDmg = QWER.GetDamage(t);
             totalDmg -= t.HPRegenRate;
@@ -192,7 +191,7 @@ namespace SebbyLib
 
         public static bool CanMove(AIHeroClient target)
         {
-            if (target.MoveSpeed < 50 || target.IsStunned || target.HasBuffOfType(BuffType.Stun) || target.HasBuffOfType(BuffType.Fear) || target.HasBuffOfType(BuffType.Snare) || target.HasBuffOfType(BuffType.Knockup) || target.HasBuff("Recall") ||
+            if (target.MoveSpeed < 50 || (!target.CanMove && !target.Spellbook.IsAutoAttacking) || target.IsStunned || target.HasBuffOfType(BuffType.Stun) || target.HasBuffOfType(BuffType.Fear) || target.HasBuffOfType(BuffType.Snare) || target.HasBuffOfType(BuffType.Knockup) || target.HasBuff("Recall") ||
                 target.HasBuffOfType(BuffType.Knockback) || target.HasBuffOfType(BuffType.Charm) || target.HasBuffOfType(BuffType.Taunt) || target.HasBuffOfType(BuffType.Suppression) || (target.IsChannelingImportantSpell() && !target.IsMoving))
             {
                 return false;
@@ -374,8 +373,9 @@ namespace SebbyLib
             
             if (targed != null)
             {
-                if (targed.Type == GameObjectType.AIHeroClient && targed.Team != sender.Team && sender.IsMelee)
+                if (targed.Type == GameObjectType.AIHeroClient && targed.Team != sender.Team && (sender.IsMelee || !args.SData.IsAutoAttack()))
                 {
+
                     IncomingDamageList.Add(new UnitIncomingDamage { Damage = sender.GetSpellDamage(targed, args.SData.Name), TargetNetworkId = args.Target.NetworkId, Time = Game.Time, Skillshot = false });
                 }
             }

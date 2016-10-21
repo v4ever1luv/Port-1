@@ -4,36 +4,24 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
-namespace OneKeyToWin_AIO_Sebby
+namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Sivir
+    class Sivir : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        public Spell E, Q, Qc, W, R;
-        public float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-
-
-        public AIHeroClient Player { get { return ObjectManager.Player; } }
-
 
         public static Core.MissileReturn missileManager;
 
-        public void LoadOKTW()
+        public Sivir()
         {
             Q = new Spell(SpellSlot.Q, 1200f);
-            Qc = new Spell(SpellSlot.Q, 1200f);
+            Q1 = new Spell(SpellSlot.Q, 1200f);
             W = new Spell(SpellSlot.W, float.MaxValue);
             E = new Spell(SpellSlot.E, float.MaxValue);
             R = new Spell(SpellSlot.R, 25000f);
 
             Q.SetSkillshot(0.25f, 90f, 1350f, false, SkillshotType.SkillshotLine);
-            Qc.SetSkillshot(0.25f, 90f, 1350f, true, SkillshotType.SkillshotLine);
+            Q1.SetSkillshot(0.25f, 90f, 1350f, true, SkillshotType.SkillshotLine);
 
             missileManager = new Core.MissileReturn("SivirQMissile", "SivirQMissileReturn", Q);
 
@@ -44,14 +32,11 @@ namespace OneKeyToWin_AIO_Sebby
 
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQ", "Lane clear Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmW", "Lane clear W", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("Mana", "LaneClear Mana", true).SetValue(new Slider(80, 100, 0)));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("LCminions", "LaneClear minimum minions", true).SetValue(new Slider(5, 10, 0)));
+
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("jungleQ", "Jungle clear Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("jungleW", "Jungle clear W", true).SetValue(true));
 
-            Config.SubMenu(Player.ChampionName).AddItem(new MenuItem("harasW", "Harras W", true).SetValue(true));
-            foreach (var enemy in HeroManager.Enemies)
-                Config.SubMenu(Player.ChampionName).SubMenu("Harras").AddItem(new MenuItem("haras" + enemy.ChampionName, enemy.ChampionName).SetValue(true));
+            Config.SubMenu(Player.ChampionName).AddItem(new MenuItem("harassW", "Harass W", true).SetValue(true));
 
             foreach (var enemy in HeroManager.Enemies)
             {
@@ -75,7 +60,7 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu(Player.ChampionName).SubMenu("E Shield Config").AddItem(new MenuItem("AGC", "AntiGapcloserE", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("E Shield Config").AddItem(new MenuItem("Edmg", "Block under % hp", true).SetValue(new Slider(90, 100, 0)));
 
-            Game.OnTick += Game_OnGameUpdate;
+            Game.OnUpdate += Game_OnGameUpdate;
             Drawing.OnDraw += Drawing_OnDraw;
             Orbwalking.AfterAttack += Orbwalker_AfterAttack;
             Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
@@ -107,7 +92,7 @@ namespace OneKeyToWin_AIO_Sebby
                         W.Cast();
                     if (Program.Combo && Player.Mana > RMANA + WMANA)
                         W.Cast();
-                    else if (Config.Item("harasW", true).GetValue<bool>() && !Player.UnderTurret(true) && Player.Mana > RMANA + WMANA + QMANA && Config.Item("haras" + t.ChampionName).GetValue<bool>())
+                    else if (Config.Item("harassW", true).GetValue<bool>() && !Player.UnderTurret(true) && Player.Mana > RMANA + WMANA + QMANA && Config.Item("Harass" + t.ChampionName).GetValue<bool>())
                     {
                         W.Cast();
                     }
@@ -115,15 +100,15 @@ namespace OneKeyToWin_AIO_Sebby
                 else
                 {
                     var t2 = TargetSelector.GetTarget(900, TargetSelector.DamageType.Physical);
-                    if (t2.IsValidTarget() && Config.Item("harasW", true).GetValue<bool>() && Config.Item("haras" + t2.ChampionName).GetValue<bool>() && !Player.UnderTurret(true) && Player.Mana > RMANA + WMANA + QMANA && t2.Distance(target.Position) < 500)
+                    if (t2.IsValidTarget() && Config.Item("harassW", true).GetValue<bool>() && Config.Item("Harass" + t2.ChampionName).GetValue<bool>() && !Player.UnderTurret(true) && Player.Mana > RMANA + WMANA + QMANA && t2.Distance(target.Position) < 500)
                     {
                         W.Cast();
                     }
 
-                    if (target is Obj_AI_Minion && Program.LaneClear && Config.Item("farmW", true).GetValue<bool>() && Player.ManaPercent > Config.Item("Mana", true).GetValue<Slider>().Value && !Player.UnderTurret(true))
+                    if (target is Obj_AI_Minion && FarmSpells && Config.Item("farmW", true).GetValue<bool>() && FarmSpells && !Player.UnderTurret(true))
                     {
                         var minions = Cache.GetMinions(target.Position, 500);
-                        if (minions.Count >= Config.Item("LCminions", true).GetValue<Slider>().Value)
+                        if (minions.Count >= FarmMinions)
                         {
                             W.Cast();
                         }
@@ -196,12 +181,12 @@ namespace OneKeyToWin_AIO_Sebby
                     Q.Cast(t, true);
                 else if (Program.Combo && Player.Mana > RMANA + QMANA)
                     Program.CastSpell(Q, t);
-                else if (Program.Farm && Config.Item("haras" + t.ChampionName).GetValue<bool>() && !Player.UnderTurret(true))
+                else if (Program.Farm && Config.Item("Harass" + t.ChampionName).GetValue<bool>() && !Player.UnderTurret(true))
                 {
                      if (Player.Mana > Player.MaxMana * 0.9)
                         Program.CastSpell(Q, t);
                      else if (ObjectManager.Player.Mana > RMANA + WMANA + QMANA + QMANA)
-                        Program.CastSpell(Qc, t);
+                        Program.CastSpell(Q1, t);
                      else if (Player.Mana > RMANA + WMANA + QMANA + QMANA)
                      {
                          Q.CastIfWillHit(t, 2, true);
@@ -215,11 +200,11 @@ namespace OneKeyToWin_AIO_Sebby
                         Q.Cast(enemy);
                 }
             }
-            else if (Program.LaneClear && Player.ManaPercent > Config.Item("Mana", true).GetValue<Slider>().Value && Config.Item("farmQ", true).GetValue<bool>() && Player.Mana > RMANA + QMANA)
+            else if (FarmSpells && Config.Item("farmQ", true).GetValue<bool>() )
             {
                 var minionList = Cache.GetMinions(Player.ServerPosition, Q.Range);
                 var farmPosition = Q.GetLineFarmLocation(minionList, Q.Width);
-                if (farmPosition.MinionsHit >= Config.Item("LCminions", true).GetValue<Slider>().Value)
+                if (farmPosition.MinionsHit >= FarmMinions)
                     Q.Cast(farmPosition.Position);
             }
         }
@@ -265,14 +250,14 @@ namespace OneKeyToWin_AIO_Sebby
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = QMANA - Player.PARRegenRate * Q.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         public static void drawText2(string msg, Vector3 Hero, int high, System.Drawing.Color color)

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 
 using EloBuddy;
-//using EloBuddy.SDK;
 using LeagueSharp.Common;
 using SharpDX;
 
@@ -27,7 +26,30 @@ namespace ezEvade.SpecialSpells
                 SpellDetector.OnProcessSpecialSpell += ProcessSpell_ThreeWay;
                 pDict["ProcessSpell_ProcessThreeWay"] = true;
             }    
-        }            
+
+            if (spellData.hasEndExplosion && !pDict.ContainsKey("OnUpdate_EndExplosion"))
+            {
+                Game.OnUpdate += OnUpdate_EndExplosion;
+                pDict["OnUpdate_EndExplosion"] = true;
+            }
+        }
+
+        private void OnUpdate_EndExplosion(EventArgs args)
+        {
+            if (ObjectCache.menuCache.cache["CheckSpellCollision"].GetValue<bool>() == false)
+            {
+                return;
+            }
+
+            foreach (var entry in SpellDetector.detectedSpells)
+            {
+                var spell = entry.Value;
+                if (spell.info.name.Contains("_exp") && spell.spellType == SpellType.Circular)
+                {
+                    spell.endPos = spell.GetCurrentSpellPosition();
+                }
+            }
+        }
 
         private static void ProcessSpell_ThreeWay(Obj_AI_Base hero, GameObjectProcessSpellCastEventArgs args, SpellData spellData, SpecialSpellEventArgs specialSpellArgs)
         {

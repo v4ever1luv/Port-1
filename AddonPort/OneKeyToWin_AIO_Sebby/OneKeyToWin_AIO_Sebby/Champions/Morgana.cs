@@ -3,22 +3,12 @@ using System.Linq;
 using EloBuddy;
 using LeagueSharp.Common;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
-namespace OneKeyToWin_AIO_Sebby
+namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Morgana
+    class Morgana : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        private Spell E, Q, R, W;
-        private float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-        public AIHeroClient Player { get { return ObjectManager.Player; } }
-
-        public void LoadOKTW()
+        public Morgana()
         {
             Q = new Spell(SpellSlot.Q, 1150);
             W = new Spell(SpellSlot.W, 1000);
@@ -45,8 +35,6 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu(Player.ChampionName).SubMenu("W config").AddItem(new MenuItem("autoWcc", "Auto W only CC enemy", true).SetValue(false));
 
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmW", "Lane clear W", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("Mana", "LaneClear Mana", true).SetValue(new Slider(80, 100, 0)));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("LCminions", "LaneClear minimum minions", true).SetValue(new Slider(2, 10, 0)));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("jungleQ", "Jungle clear Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("jungleW", "Jungle clear W", true).SetValue(true));
 
@@ -57,10 +45,10 @@ namespace OneKeyToWin_AIO_Sebby
                     var spell2 = enemy.Spellbook.Spells[i];
                     if (spell2 != null && spell2.SData != null && spell2.SData.TargettingType != SpellDataTargetType.Self && spell2.SData.TargettingType != SpellDataTargetType.SelfAndUnit)
                     { 
-                        var spell = LeagueSharp.Common.Damage.Spells[enemy.ChampionName].FirstOrDefault(s => s.Slot == enemy.Spellbook.Spells[i].Slot);
+                        var spell = Damage.Spells[enemy.ChampionName].FirstOrDefault(s => s.Slot == enemy.Spellbook.Spells[i].Slot);
                         if (spell != null)
                         {
-                            if (spell.DamageType == LeagueSharp.Common.Damage.DamageType.Physical || spell.DamageType == LeagueSharp.Common.Damage.DamageType.True)
+                            if (spell.DamageType == Damage.DamageType.Physical || spell.DamageType == Damage.DamageType.True)
                                 Config.SubMenu(Player.ChampionName).SubMenu("E Shield Config").SubMenu("Spell Manager").SubMenu(enemy.ChampionName).AddItem(new MenuItem("spell" + spell2.SData.Name, spell2.Name, true).SetValue(false));
                             else
                                 Config.SubMenu(Player.ChampionName).SubMenu("E Shield Config").SubMenu("Spell Manager").SubMenu(enemy.ChampionName).AddItem(new MenuItem("spell" + spell2.SData.Name, spell2.Name, true).SetValue(true));
@@ -84,7 +72,7 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu(Player.ChampionName).SubMenu("R config").AddItem(new MenuItem("inter", "OnPossibleToInterrupt", true)).SetValue(true);
             Config.SubMenu(Player.ChampionName).SubMenu("R config").AddItem(new MenuItem("Gap", "OnEnemyGapcloser", true)).SetValue(true);    
 
-            Game.OnTick += Game_OnGameUpdate;
+            Game.OnUpdate += Game_OnGameUpdate;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
             Interrupter2.OnInterruptableTarget += Interrupter2_OnInterruptableTarget;
             Drawing.OnDraw += Drawing_OnDraw;
@@ -215,12 +203,12 @@ namespace OneKeyToWin_AIO_Sebby
                 foreach (var enemy in HeroManager.Enemies.Where(enemy => enemy.IsValidTarget(W.Range) && !OktwCommon.CanMove(enemy)))
                     W.Cast(enemy, true);
             }
-            else if (Program.LaneClear && Player.ManaPercent > Config.Item("Mana", true).GetValue<Slider>().Value && Config.Item("farmW", true).GetValue<bool>() && Player.Mana > RMANA + WMANA)
+            else if (FarmSpells && Config.Item("farmW", true).GetValue<bool>() && Player.Mana > RMANA + WMANA)
             {
                 var minionList = Cache.GetMinions(Player.ServerPosition, W.Range);
                 var farmPosition = W.GetCircularFarmLocation(minionList, W.Width);
 
-                if (farmPosition.MinionsHit > Config.Item("LCminions", true).GetValue<Slider>().Value)
+                if (farmPosition.MinionsHit >= FarmMinions)
                     W.Cast(farmPosition.Position);
             }
         }
@@ -272,14 +260,14 @@ namespace OneKeyToWin_AIO_Sebby
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = QMANA - Player.PARRegenRate * Q.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         private void Drawing_OnDraw(EventArgs args)

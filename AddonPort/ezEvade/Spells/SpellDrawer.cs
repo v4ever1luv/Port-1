@@ -20,7 +20,7 @@ namespace ezEvade
 
         public SpellDrawer(Menu mainMenu)
         {
-            Drawing.OnDraw += new DrawingDraw(Drawing_OnDraw);
+            Drawing.OnDraw += Drawing_OnDraw;
 
             menu = mainMenu;
             Game_OnGameLoad();
@@ -46,7 +46,7 @@ namespace ezEvade
             normalDangerMenu.AddItem(new MenuItem("NormalColor", "Color").SetValue(new Circle(true, Color.FromArgb(140, 255, 255, 255))));
 
             Menu highDangerMenu = new Menu("High", "HighDrawing");
-            highDangerMenu.AddItem(new MenuItem("HighWidth", "Line Width").SetValue(new Slider(4, 1, 15)));
+            highDangerMenu.AddItem(new MenuItem("HighWidth", "Line Width").SetValue(new Slider(3, 1, 15)));
             highDangerMenu.AddItem(new MenuItem("HighColor", "Color").SetValue(new Circle(true, Color.FromArgb(255, 255, 255, 255))));
 
             Menu extremeDangerMenu = new Menu("Extreme", "ExtremeDrawing");
@@ -97,7 +97,7 @@ namespace ezEvade
                 var dimension = Drawing.GetTextEntent("Evade: ON", 0);
 
                 if (ObjectCache.menuCache.cache["DodgeSkillShots"].GetValue<KeyBind>().Active)
-                {
+                {                    
                     if (Evade.isDodging)
                     {
                         Drawing.DrawText(heroPos.X - dimension.Width / 2, heroPos.Y, Color.Red, "Evade: ON");
@@ -115,7 +115,7 @@ namespace ezEvade
                                 Drawing.DrawText(heroPos.X - dimension.Width / 2, heroPos.Y, Color.Yellow, "Evade: ON");
                             else
                                 Drawing.DrawText(heroPos.X - dimension.Width / 2, heroPos.Y, Color.Lime, "Evade: ON");
-                        }
+                        }                        
                     }
                 }
                 else
@@ -132,7 +132,7 @@ namespace ezEvade
                             if (Evade.isDodgeDangerousEnabled())
                                 Drawing.DrawText(heroPos.X - dimension.Width / 2, heroPos.Y, Color.Yellow, "Evade: Spell");
                             else
-                                Drawing.DrawText(heroPos.X - dimension.Width / 2, heroPos.Y, Color.Fuchsia, "Evade: Spell");
+                                Drawing.DrawText(heroPos.X - dimension.Width / 2, heroPos.Y, Color.DeepSkyBlue, "Evade: Spell");
                         }
                     }
                     else
@@ -183,12 +183,16 @@ namespace ezEvade
                 if (ObjectCache.menuCache.cache[spell.info.spellName + "DrawSpell"].GetValue<bool>()
                     && spellDrawingConfig.Active)
                 {
+                    bool canEvade = true;
+                    //bool canEvade = !(Evade.lastPosInfo != null && Evade.lastPosInfo.undodgeableSpells.Contains(spell.spellID));
+                  
                     if (spell.spellType == SpellType.Line)
                     {
                         Vector2 spellPos = spell.currentSpellPosition;
                         Vector2 spellEndPos = spell.GetSpellEndPosition();
 
-                        DrawLineRectangle(spellPos, spellEndPos, (int)spell.radius, spellDrawingWidth, spellDrawingConfig.Color);
+                        
+                        DrawLineRectangle(spellPos, spellEndPos, (int)spell.radius, spellDrawingWidth, !canEvade ? Color.Yellow : spellDrawingConfig.Color);
 
                         /*foreach (var hero in ObjectManager.Get<AIHeroClient>())
                         {
@@ -208,21 +212,21 @@ namespace ezEvade
                             /*if (spell.spellObject != null && spell.spellObject.IsValid && spell.spellObject.IsVisible &&
                                   spell.spellObject.Position.To2D().Distance(ObjectCache.myHeroCache.serverPos2D) < spell.info.range + 1000)*/
 
-                            Render.Circle.DrawCircle(new Vector3(spellPos.X, spellPos.Y, myHero.Position.Z), (int)spell.radius, spellDrawingConfig.Color, spellDrawingWidth);
+                            Render.Circle.DrawCircle(new Vector3(spellPos.X, spellPos.Y, spell.height), (int) spell.radius, !canEvade ? Color.Yellow : spellDrawingConfig.Color, spellDrawingWidth);
                         }
 
                     }
                     else if (spell.spellType == SpellType.Circular)
                     {
-                        Render.Circle.DrawCircle(new Vector3(spell.endPos.X, spell.endPos.Y, spell.height), (int)spell.radius, spellDrawingConfig.Color, spellDrawingWidth);
+                        Render.Circle.DrawCircle(new Vector3(spell.endPos.X, spell.endPos.Y, spell.height), (int) spell.radius, !canEvade ? Color.Yellow : spellDrawingConfig.Color, spellDrawingWidth);
 
                         if (spell.info.spellName == "VeigarEventHorizon")
                         {
-                            Render.Circle.DrawCircle(new Vector3(spell.endPos.X, spell.endPos.Y, spell.height), (int)spell.radius - 125, spellDrawingConfig.Color, spellDrawingWidth);
+                            Render.Circle.DrawCircle(new Vector3(spell.endPos.X, spell.endPos.Y, spell.height), (int) spell.radius - 125, !canEvade ? Color.Yellow : spellDrawingConfig.Color, spellDrawingWidth);
                         }
                     }
                     else if (spell.spellType == SpellType.Arc)
-                    {
+                    {                      
                         /*var spellRange = spell.startPos.Distance(spell.endPos);
                         var midPoint = spell.startPos + spell.direction * (spellRange / 2);
 

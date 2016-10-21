@@ -4,22 +4,12 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Tristana
+    class Tristana : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        public Spell Q, W, E, R;
-        public float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-        public AIHeroClient Player { get { return ObjectManager.Player; }}
-
-        public void LoadMenuOKTW()
+        public Tristana()
         {
             Q = new Spell(SpellSlot.Q);
             W = new Spell(SpellSlot.W, 900);
@@ -34,16 +24,16 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("rRange", "R range", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("eInfo", "E info", true).SetValue(true));
 
-            Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("harasQ", "Haras Q", true).SetValue(true));
+            Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("harassQ", "Harass Q", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("nktdE", "NoKeyToDash", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("Wks", "W KS logic (W+E+R calculation)", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("smartW", "SmartCast W key", true).SetValue(new KeyBind("T".ToCharArray()[0], KeyBindType.Press))); //32 == space
 
+            Config.SubMenu(Player.ChampionName).SubMenu("E Config").AddItem(new MenuItem("harassE", "Harass E", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("E Config").AddItem(new MenuItem("Eafter", "E after attack", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("E Config").AddItem(new MenuItem("focusE", "Focus target with E", true).SetValue(true));
-            foreach (var enemy in HeroManager.Enemies)
-                Config.SubMenu(Player.ChampionName).SubMenu("E Config").SubMenu("Harras E").AddItem(new MenuItem("harras" + enemy.ChampionName, enemy.ChampionName).SetValue(true));
+
             foreach (var enemy in HeroManager.Enemies)
                 Config.SubMenu(Player.ChampionName).SubMenu("E Config").SubMenu("Use E on").AddItem(new MenuItem("useEon" + enemy.ChampionName, enemy.ChampionName).SetValue(true));
 
@@ -61,7 +51,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQ", "Lane clear Q", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("jungle", "Jungle Farm", true).SetValue(true));
-            Game.OnTick += Game_OnUpdate;
+            Game.OnUpdate += Game_OnUpdate;
             Drawing.OnDraw += Drawing_OnDraw;
             Orbwalking.BeforeAttack += BeforeAttack;
             Orbwalking.AfterAttack += afterAttack;
@@ -78,11 +68,11 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                 {
                     if (Program.Combo)
                         Q.Cast();
-                    else if (Program.Farm && Config.Item("harasQ", true).GetValue<bool>())
+                    else if (Program.Farm && Config.Item("harassQ", true).GetValue<bool>())
                         Q.Cast();
                 }
             }
-            else if (target is Obj_AI_Minion && Program.LaneClear && Config.Item("farmQ", true).GetValue<bool>() && OktwCommon.CountEnemyMinions(Player, 700) > 2)
+            else if (target is Obj_AI_Minion && FarmSpells && Config.Item("farmQ", true).GetValue<bool>() && OktwCommon.CountEnemyMinions(Player, 700) > 2)
                 Q.Cast();
         }
 
@@ -112,16 +102,14 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                         if (!Player.HasBuff("itemstatikshankcharge"))
                             args.Process = false;
                     }
-                    else if (Program.Farm && Player.Mana > RMANA + EMANA + WMANA + RMANA && Config.Item("harras" + t.ChampionName).GetValue<bool>())
+                    else if (Program.Farm && Player.Mana > RMANA + EMANA + WMANA + RMANA && Config.Item("harassE", true).GetValue<bool>() && Config.Item("Harass" + t.ChampionName).GetValue<bool>())
                     {
                         E.Cast(t);
                         if (!Player.HasBuff("itemstatikshankcharge"))
                             args.Process = false;
                     }
                 }
-            }
-
-            
+            } 
         }
 
         private void Game_OnUpdate(EventArgs args)
@@ -203,7 +191,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                     Program.debug("R ks");
                 }
                 
-                var prepos = LeagueSharp.Common.Prediction.GetPrediction(enemy, 0.4f);
+                var prepos = Prediction.GetPrediction(enemy, 0.4f);
                 var finalPosition = prepos.CastPosition.Extend(Player.Position, -pushDistance);
 
                 if (Config.Item("turrentR", true).GetValue<bool>())
@@ -294,14 +282,14 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = EMANA - Player.PARRegenRate * E.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         public static void drawText2(string msg, Vector3 Hero, System.Drawing.Color color)

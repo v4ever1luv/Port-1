@@ -4,27 +4,16 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
-namespace OneKeyToWin_AIO_Sebby
+namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Lucian
+    class Lucian : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-
-        private Spell E, Q, Q1, R, R1, W;
-
-        private float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
         private bool passRdy = false;
         private float castR = Game.Time;
-        public AIHeroClient Player {get { return ObjectManager.Player; }}
         public static Core.OKTWdash Dash;
 
-        public void LoadOKTW()
+        public Lucian()
         {
             Q = new Spell(SpellSlot.Q, 675f);
             Q1 = new Spell(SpellSlot.Q, 900f);
@@ -46,7 +35,7 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("rRange", "R range", true).SetValue(false));
 
             Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("autoQ", "Auto Q", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("harasQ", "Use Q on minion", true).SetValue(true));
+            Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("harassQ", "Use Q on minion", true).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("autoW", "Auto W", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("W Config").AddItem(new MenuItem("ignoreCol", "Ignore collision", true).SetValue(true));
@@ -61,15 +50,13 @@ namespace OneKeyToWin_AIO_Sebby
 
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmQ", "LaneClear Q", true).SetValue(true));
             Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("farmW", "LaneClear W", true).SetValue(true));
-            Config.SubMenu(Player.ChampionName).SubMenu("Farm").AddItem(new MenuItem("Mana", "LaneClear Mana", true).SetValue(new Slider(80, 100, 30)));
-            foreach (var enemy in HeroManager.Enemies)
-                Config.SubMenu(Player.ChampionName).SubMenu("Harras").AddItem(new MenuItem("harras" + enemy.ChampionName, enemy.ChampionName).SetValue(true));
+
             
-            Game.OnTick += new GameTick(Game_OnGameUpdate);
-            Drawing.OnDraw += new DrawingDraw(Drawing_OnDraw);
-            Orbwalking.AfterAttack += new Orbwalking.AfterAttackEvenH(afterAttack);
-            Obj_AI_Base.OnSpellCast += new Obj_AI_BaseDoCastSpell(Obj_AI_Base_OnProcessSpellCast);
-            Spellbook.OnCastSpell += new SpellbookCastSpell(Spellbook_OnCastSpell);
+            Game.OnUpdate += Game_OnGameUpdate;
+            Drawing.OnDraw += Drawing_OnDraw;
+            Orbwalking.AfterAttack += afterAttack;
+            Obj_AI_Base.OnSpellCast += Obj_AI_Base_OnProcessSpellCast;
+            Spellbook.OnCastSpell +=Spellbook_OnCastSpell;
         }
 
         private void Spellbook_OnCastSpell(Spellbook sender, SpellbookCastSpellEventArgs args)
@@ -161,10 +148,10 @@ namespace OneKeyToWin_AIO_Sebby
                     Q.Cast(t);
                 else if (Program.Combo && Player.Mana > RMANA + QMANA)
                     Q.Cast(t);
-                else if (Program.Farm && Config.Item("harras" + t.ChampionName).GetValue<bool>() && Player.Mana > RMANA + QMANA + EMANA + WMANA)
+                else if (Program.Farm && Config.Item("Harass" + t.ChampionName).GetValue<bool>() && Player.Mana > RMANA + QMANA + EMANA + WMANA)
                     Q.Cast(t);
             }
-            else if ((Program.Farm || Program.Combo) && Config.Item("harasQ", true).GetValue<bool>() && t1.IsValidTarget(Q1.Range) && Config.Item("harras" + t1.ChampionName).GetValue<bool>() && Player.Distance(t1.ServerPosition) > Q.Range + 100)
+            else if ((Program.Farm || Program.Combo) && Config.Item("harassQ", true).GetValue<bool>() && t1.IsValidTarget(Q1.Range) && Config.Item("Harass" + t1.ChampionName).GetValue<bool>() && Player.Distance(t1.ServerPosition) > Q.Range + 100)
             {
                 if (Program.Combo && Player.Mana < RMANA + QMANA)
                     return;
@@ -172,7 +159,7 @@ namespace OneKeyToWin_AIO_Sebby
                     return;
                 if (!OktwCommon.CanHarras())
                     return;
-                var prepos = LeagueSharp.Common.Prediction.GetPrediction(t1, Q1.Delay); 
+                var prepos = Prediction.GetPrediction(t1, Q1.Delay); 
                 if ((int)prepos.Hitchance < 5)
                     return;
                 var distance = Player.Distance(prepos.CastPosition);
@@ -229,7 +216,7 @@ namespace OneKeyToWin_AIO_Sebby
                 
                 if (Orbwalker.ActiveMode == Orbwalking.OrbwalkingMode.Combo && Player.Mana > RMANA + WMANA + EMANA + QMANA)
                     Program.CastSpell(W, t);
-                else if (Program.Farm && Config.Item("harras" + t.ChampionName).GetValue<bool>() && !Player.UnderTurret(true) && Player.Mana > Player.MaxMana * 0.8 && Player.Mana > RMANA + WMANA + EMANA + QMANA + WMANA)
+                else if (Program.Farm && Config.Item("Harass" + t.ChampionName).GetValue<bool>() && !Player.UnderTurret(true) && Player.Mana > Player.MaxMana * 0.8 && Player.Mana > RMANA + WMANA + EMANA + QMANA + WMANA)
                     Program.CastSpell(W, t);
                 else if ((Program.Combo || Program.Farm) && Player.Mana > RMANA + WMANA + EMANA)
                 {
@@ -311,7 +298,7 @@ namespace OneKeyToWin_AIO_Sebby
                     }
                 }
 
-                if (Player.ManaPercent > Config.Item("Mana", true).GetValue<Slider>().Value)
+                if (FarmSpells)
                 {
                     
                     if (Q.IsReady() && Config.Item("farmQ", true).GetValue<bool>())
@@ -367,14 +354,14 @@ namespace OneKeyToWin_AIO_Sebby
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = QMANA - Player.PARRegenRate * Q.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         public static void drawText(string msg, Vector3 Hero, System.Drawing.Color color)

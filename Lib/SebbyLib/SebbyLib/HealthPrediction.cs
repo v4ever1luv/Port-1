@@ -4,7 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using EloBuddy;
-//using EloBuddy.SDK;
 using LeagueSharp.Common;
 using SharpDX;
 namespace SebbyLib
@@ -21,12 +20,6 @@ namespace SebbyLib
         /// </summary>
         static HealthPrediction()
         {
-            //Obj_AI_Base.OnProcessSpellCast += ObjAiBaseOnOnProcessSpellCast;
-            //Game.OnUpdate += Game_OnGameUpdate;
-            //Spellbook.OnStopCast += SpellbookOnStopCast;
-            //MissileClient.OnDelete += MissileClient_OnDelete;
-            //Obj_AI_Base.OnSpellCast += Obj_AI_Base_OnDoCast;
-
             Obj_AI_Base.OnSpellCast += new Obj_AI_BaseDoCastSpell(Obj_AI_Base_OnDoCast);
             Obj_AI_Base.OnBasicAttack += new Obj_AI_BaseOnBasicAttack(ObjAiBaseOnOnProcessSpellCast);
             Spellbook.OnStopCast += new SpellbookStopCast(SpellbookOnStopCast);

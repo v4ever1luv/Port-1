@@ -4,7 +4,6 @@ using System.Linq;
 using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
-//using EloBuddy.SDK;
 
 namespace SebbyLib
 {
@@ -27,8 +26,8 @@ namespace SebbyLib
                     AllMinionsObj.Add(minion);
             }
 
-            GameObject.OnCreate += new GameObjectCreate(Obj_AI_Base_OnCreate);
-            Game.OnTick += new GameTick(Game_OnUpdate);
+            GameObject.OnCreate += Obj_AI_Base_OnCreate;
+            Game.OnUpdate += Game_OnUpdate;
         }
 
         private static void Game_OnUpdate(EventArgs args)

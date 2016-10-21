@@ -5,25 +5,16 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Draven
+    class Draven : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        private Spell E, Q, R, W;
-        private float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
         private int axeCatchRange;
-        public AIHeroClient Player { get { return ObjectManager.Player; } }
         private static GameObject RMissile = null;
         public List<GameObject> axeList = new List<GameObject>();
 
-        public void LoadOKTW()
+        public Draven()
         {
             Q = new Spell(SpellSlot.Q);
             W = new Spell(SpellSlot.W);
@@ -71,7 +62,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             GameObject.OnCreate += GameObjectOnOnCreate;
             GameObject.OnDelete += GameObjectOnOnDelete;
             Drawing.OnDraw += Drawing_OnDraw;
-            Game.OnTick += GameOnOnUpdate;
+            Game.OnUpdate += GameOnOnUpdate;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
             Interrupter2.OnInterruptableTarget += Interrupter2_OnInterruptableTarget;
         }
@@ -310,7 +301,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
 
         private float CalculateR(Obj_AI_Base target)
         {
-            return (float)Player.CalcDamage(target, LeagueSharp.Common.Damage.DamageType.Physical, (75 + (100 * R.Level)) + Player.FlatPhysicalDamageMod * 1.1);
+            return (float)Player.CalcDamage(target, Damage.DamageType.Physical, (75 + (100 * R.Level)) + Player.FlatPhysicalDamageMod * 1.1);
         }
 
         private double getRdmg(Obj_AI_Base target)
@@ -439,14 +430,14 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = EMANA - Player.PARRegenRate * E.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         public static void drawText2(string msg, Vector3 Hero, System.Drawing.Color color)

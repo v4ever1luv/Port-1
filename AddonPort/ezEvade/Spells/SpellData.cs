@@ -26,7 +26,7 @@ namespace ezEvade
     }
 
     public class SpellData
-    {
+    {            
         public string charName;
         public SpellSlot spellKey = SpellSlot.Q;
         public int dangerlevel = 1;
@@ -64,7 +64,7 @@ namespace ezEvade
 
         public SpellData()
         {
-
+        
         }
 
         public SpellData(
@@ -74,7 +74,7 @@ namespace ezEvade
             int range,
             int radius,
             int dangerlevel,
-            SpellType spellType
+            SpellType spellType            
             )
         {
             this.charName = charName;

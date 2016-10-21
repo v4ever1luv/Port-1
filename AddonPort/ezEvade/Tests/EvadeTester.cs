@@ -6,10 +6,8 @@ using System.Text;
 using Color = System.Drawing.Color;
 
 using EloBuddy;
-//using EloBuddy.SDK;
 using LeagueSharp.Common;
 using SharpDX;
-//using EloBuddy.SDK.Events;
 
 namespace ezEvade
 {
@@ -72,7 +70,6 @@ namespace ezEvade
             Drawing.OnDraw += Drawing_OnDraw;
             EloBuddy.Player.OnIssueOrder += Game_OnIssueOrder;
             Game.OnUpdate += Game_OnGameUpdate;
-            Chat.OnInput += Game_OnGameInput;
 
             Game.OnSendPacket += Game_onSendPacket;
             //Game.OnProcessPacket += Game_onRecvPacket;
@@ -175,12 +172,6 @@ namespace ezEvade
             {
                 //ConsolePrinter.Print(myHero);
             }
-        }
-
-        private void Game_OnGameInput(ChatInputEventArgs args)
-        {
-            ConsolePrinter.Print("" + args.Input);
-
         }
 
         private static void ObjAiHeroOnOnNewPath(Obj_AI_Base unit, GameObjectNewPathEventArgs args)

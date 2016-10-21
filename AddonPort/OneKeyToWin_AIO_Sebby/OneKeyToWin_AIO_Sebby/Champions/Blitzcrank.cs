@@ -4,29 +4,15 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
 namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Blitzcrank
+    class Blitzcrank : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-
-        private Spell E, Q, R, W;
-
-        private float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-
         private int grab = 0 , grabS = 0;
-
         private float grabW = 0;
 
-        public AIHeroClient Player {get { return ObjectManager.Player; }}
-
-        public void LoadOKTW()
+        public  Blitzcrank()
         {
             Q = new Spell(SpellSlot.Q, 920);
             W = new Spell(SpellSlot.W, 200);
@@ -61,7 +47,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("rRange", "R range", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("onlyRdy", "Draw when skill rdy", true).SetValue(true));
 
-            Game.OnTick += Game_OnGameUpdate;
+            Game.OnUpdate += Game_OnGameUpdate;
             Orbwalking.BeforeAttack += BeforeAttack;
             Orbwalking.AfterAttack += afterAttack;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
@@ -163,7 +149,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
             var ts = Config.Item("ts", true).GetValue<bool>();
             var qTur = Player.UnderAllyTurret() && Config.Item("qTur", true).GetValue<bool>();
             var qCC = Config.Item("qCC", true).GetValue<bool>();
-
+            var countE = Player.CountEnemiesInRange(1500) == 1;
             if (Program.Combo && ts)
             {
                 var t = TargetSelector.GetTarget(maxGrab, TargetSelector.DamageType.Physical);
@@ -172,7 +158,7 @@ namespace OneKeyToWin_AIO_Sebby.Champions
                     Program.CastSpell(Q, t);
             }
 
-            foreach (var t in HeroManager.Enemies.Where(t => t.IsValidTarget(maxGrab) && Config.Item("grab" + t.ChampionName).GetValue<bool>()))
+            foreach (var t in HeroManager.Enemies.Where(t => t.IsValidTarget(maxGrab) && (Config.Item("grab" + t.ChampionName).GetValue<bool>() || countE)))
             {
                 if (!t.HasBuffOfType(BuffType.SpellImmunity) && !t.HasBuffOfType(BuffType.SpellShield) && Player.Distance(t.ServerPosition) > minGrab)
                 {

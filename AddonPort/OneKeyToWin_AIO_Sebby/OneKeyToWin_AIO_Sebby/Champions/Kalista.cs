@@ -4,41 +4,29 @@ using EloBuddy;
 using LeagueSharp.Common;
 using SharpDX;
 using SebbyLib;
-using Utility = LeagueSharp.Common.Utility;
-using Spell = LeagueSharp.Common.Spell;
-using TargetSelector = LeagueSharp.Common.TargetSelector;
-//using EloBuddy.SDK;
 
-namespace OneKeyToWin_AIO_Sebby
+namespace OneKeyToWin_AIO_Sebby.Champions
 {
-    class Kalista
+    class Kalista : Base
     {
-        private Menu Config = Program.Config;
-        public static Orbwalking.Orbwalker Orbwalker = Program.Orbwalker;
-        public Spell Q, Q2, W, E, R;
-        public float QMANA = 0, WMANA = 0, EMANA = 0, RMANA = 0;
-
         private int wCount = 0;
         private float grabTime = Game.Time, lastecast = 0f;
-
         private static AIHeroClient AllyR;
 
-        public AIHeroClient Player { get { return ObjectManager.Player; } }
-
-        public void LoadOKTW()
+        public Kalista()
         {
             Q = new Spell(SpellSlot.Q, 1170);
-            Q2 = new Spell(SpellSlot.Q, 1170);
+            Q1 = new Spell(SpellSlot.Q, 1170);
             W = new Spell(SpellSlot.W, 5000);
             E = new Spell(SpellSlot.E, 1000);
             R = new Spell(SpellSlot.R, 1500f);
 
             Q.SetSkillshot(0.1f, 40f, 2400f, true, SkillshotType.SkillshotLine);
-            Q2.SetSkillshot(0.1f, 40f, 2400f, false, SkillshotType.SkillshotLine);
+            Q1.SetSkillshot(0.1f, 40f, 2400f, false, SkillshotType.SkillshotLine);
 
             LoadMenuOKTW();
 
-            Game.OnTick += Game_OnUpdate;
+            Game.OnUpdate += Game_OnUpdate;
             Drawing.OnDraw += Drawing_OnDraw;
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;
             Obj_AI_Base.OnProcessSpellCast += Obj_AI_Base_OnProcessSpellCast;
@@ -50,9 +38,6 @@ namespace OneKeyToWin_AIO_Sebby
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("eRange", "E range", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("rRange", "R range", true).SetValue(false));
             Config.SubMenu(Player.ChampionName).SubMenu("Draw").AddItem(new MenuItem("onlyRdy", "Draw only ready spells", true).SetValue(true));
-
-            foreach (var enemy in HeroManager.Enemies)
-                Config.SubMenu(Player.ChampionName).SubMenu("Q Config").SubMenu("Harras Q").AddItem(new MenuItem("haras" + enemy.ChampionName, enemy.ChampionName).SetValue(true));
 
             Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("qMana", "Q harass mana %", true).SetValue(new Slider(50, 100, 0)));
             Config.SubMenu(Player.ChampionName).SubMenu("Q Config").AddItem(new MenuItem("qMode", "Q combo mode", true).SetValue(new StringList(new[] { "Always", "OKTW logic" }, 1)));
@@ -204,7 +189,7 @@ namespace OneKeyToWin_AIO_Sebby
                     else if (!Orbwalking.InAutoAttackRange(t) || CountMeleeInRange(400) > 0)
                         castQ(cast, t);
                 }
-                else if (Program.Farm && !Orbwalking.InAutoAttackRange(t) && Config.Item("haras" + t.ChampionName).GetValue<bool>() && !Player.UnderTurret(true) && Player.ManaPercent > Config.Item("qMana", true).GetValue<Slider>().Value)
+                else if (Program.Farm && !Orbwalking.InAutoAttackRange(t) && Config.Item("Harass" + t.ChampionName).GetValue<bool>() && !Player.UnderTurret(true) && Player.ManaPercent > Config.Item("qMana", true).GetValue<Slider>().Value)
                     castQ(cast, t);
                 if ((Program.Combo || Program.Farm) && Player.Mana > RMANA + QMANA + EMANA)
                 {
@@ -246,7 +231,7 @@ namespace OneKeyToWin_AIO_Sebby
                 countMinion += 1;
             }
             if (bestMinion != null && countMinion >= Config.Item("farmQcount", true).GetValue<Slider>().Value)
-                Q2.Cast(bestMinion);
+                Q1.Cast(bestMinion);
         
         }
 
@@ -455,7 +440,7 @@ namespace OneKeyToWin_AIO_Sebby
         void castQ(bool cast, Obj_AI_Base t)
         {
             if (cast)
-                Program.CastSpell(Q2, t);
+                Program.CastSpell(Q1, t);
             else
                 Program.CastSpell(Q, t);
         }
@@ -510,14 +495,14 @@ namespace OneKeyToWin_AIO_Sebby
                 return;
             }
 
-            QMANA = Q.Instance.SData.Mana;
-            WMANA = W.Instance.SData.Mana;
-            EMANA = E.Instance.SData.Mana;
+            QMANA = Q.ManaCost;
+            WMANA = W.ManaCost;
+            EMANA = E.ManaCost;
 
             if (!R.IsReady())
                 RMANA = QMANA - Player.PARRegenRate * Q.Instance.Cooldown;
             else
-                RMANA = R.Instance.SData.Mana;
+                RMANA = R.ManaCost;
         }
 
         public static void drawText(string msg, Obj_AI_Base Hero, System.Drawing.Color color)
