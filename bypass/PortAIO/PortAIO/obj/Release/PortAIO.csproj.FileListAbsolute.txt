@@ -1,4 +1,0 @@
-C:\Users\Administrator\Documents\Visual Studio 2015\Projects\PortAIO\PortAIO\bin\Release\PortAIO.dll
-C:\Users\Administrator\Documents\Visual Studio 2015\Projects\PortAIO\PortAIO\bin\Release\PortAIO.pdb
-C:\Users\Administrator\Documents\Visual Studio 2015\Projects\PortAIO\PortAIO\obj\Release\PortAIO.dll
-C:\Users\Administrator\Documents\Visual Studio 2015\Projects\PortAIO\PortAIO\obj\Release\PortAIO.pdb

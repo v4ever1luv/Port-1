@@ -1,4 +1,0 @@
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO.Common\PortAIO.Common\bin\Debug\PortAIO.Common.dll
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO.Common\PortAIO.Common\bin\Debug\PortAIO.Common.pdb
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO.Common\PortAIO.Common\obj\Debug\PortAIO.Common.dll
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO.Common\PortAIO.Common\obj\Debug\PortAIO.Common.pdb

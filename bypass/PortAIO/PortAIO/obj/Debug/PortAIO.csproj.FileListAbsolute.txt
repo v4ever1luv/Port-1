@@ -1,5 +1,0 @@
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO\PortAIO\bin\Debug\PortAIO.dll
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO\PortAIO\bin\Debug\PortAIO.pdb
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO\PortAIO\obj\Debug\PortAIO.csprojResolveAssemblyReference.cache
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO\PortAIO\obj\Debug\PortAIO.dll
-c:\users\administrator\documents\visual studio 2015\Projects\PortAIO\PortAIO\obj\Debug\PortAIO.pdb
