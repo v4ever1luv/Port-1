@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using EloBuddy;
 using LeagueSharp.Common;
 using System.Collections.Generic;
@@ -31,7 +31,6 @@ namespace KurisuNidalee
             // Core
             Game.OnUpdate += SpellsOnUpdate;
             Game.OnUpdate += SmiteOnUpdate;
-            Game.OnTick += Game_OnTick;
 
             // Orbwalk shit
             Orbwalking.AfterAttack += Orbwalking_AfterAttack;
@@ -42,12 +41,13 @@ namespace KurisuNidalee
 
             // Cast Handler
             Obj_AI_Base.OnProcessSpellCast += HeroOnCast;
+            Obj_AI_Base.OnSpellCast += Obj_AI_Base_PercentCooldownMod;
 
             // Anti-Gapclosing
             AntiGapcloser.OnEnemyGapcloser += AntiGapcloser_OnEnemyGapcloser;           
         }    
 
-        internal static void Game_OnTick(EventArgs args)
+        private static void Obj_AI_Base_PercentCooldownMod(Obj_AI_Base sender, GameObjectProcessSpellCastEventArgs args)
         {
             var spellR = EloBuddy.Player.Instance.Spellbook.GetSpell(SpellSlot.R);
             PercentCooldownMod = -(3 - spellR.Cooldown) / 3;
@@ -197,10 +197,12 @@ namespace KurisuNidalee
         /// <summary>
         /// Checks if Nidalee is in Cougar form or not.
         /// </summary>
-        /// <returns></returns>
+        /// <returns></returns>     
         internal static bool CatForm()
         {
-            return Player.CharData.BaseSkinName != "Nidalee";
+            return (Player.Spellbook.GetSpell(SpellSlot.Q).Name == "Takedown" ||
+                Player.Spellbook.GetSpell(SpellSlot.W).Name == "Pounce" ||
+                Player.Spellbook.GetSpell(SpellSlot.E).Name == "Swipe");
         }
 
         /// <summary>
