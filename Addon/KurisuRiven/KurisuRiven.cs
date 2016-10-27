@@ -46,7 +46,6 @@ namespace KurisuRiven
         private static HpBarIndicator hpi = new HpBarIndicator();
         private static Obj_AI_Base qtarg; // semi q target
 
-        private static int qq;
         private static int cc;
         private static int pc;
         private static bool uo;
@@ -92,7 +91,7 @@ namespace KurisuRiven
                 ? MinionManager.GetMinions(1000).OrderBy(x => x.Distance(center.Position)).FirstOrDefault()
                 : null;
         }
-
+        /*
         private static void TryIgnote(Obj_AI_Base target)
         {
             var ignote = Player.Instance.GetSpellSlot("summonerdot");
@@ -114,7 +113,7 @@ namespace KurisuRiven
                     }
                 }
             }
-        }
+        }//*/
 
         private static void useinventoryitems(Obj_AI_Base target)
         {
@@ -198,41 +197,16 @@ namespace KurisuRiven
 
             if (args.Animation == "Spell1a")
             {
-                cc = 1;
                 if (orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.None && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.LastHit && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.Flee) Utility.DelayAction.Add((menuslide("QD") * 10) + 3, Reset);
             }
-            else 
             if (args.Animation == "Spell1b")
             {
-                cc = 2;
                 if (orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.None && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.LastHit && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.Flee) Utility.DelayAction.Add((menuslide("QD") * 10) + 3, Reset);
             }
-            else 
             if (args.Animation == "Spell1c")
             {
-                cc = 3;
-                if (orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.None && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.LastHit && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.Flee) Utility.DelayAction.Add((menuslide("QLD") * 10) + 3, Reset);
-            }
-            else
-            {
-                cc = 0;
-            }
-            /*
-            switch (args.Animation)
-            {
-                case "Spell1a":
-                    cc = 1;
-                    if (orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.None && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.LastHit && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.Flee) Utility.DelayAction.Add((menuslide("QD") * 10) + 3, Reset);
-                    break;
-                case "Spell1b":                
-                    cc = 2;
-                    if (orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.None && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.LastHit && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.Flee) Utility.DelayAction.Add((menuslide("QD") * 10) + 3, Reset);
-                    break;
-                case "Spell1c":
-                    cc = 3;
-                    if (orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.None && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.LastHit && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.Flee) Utility.DelayAction.Add((menuslide("QLD") * 10) + 3, Reset);
-                    break;
-            }//*/
+                if (orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.None && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.LastHit && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.Flee && orbwalker.ActiveMode != Orbwalking.OrbwalkingMode.Mixed) Utility.DelayAction.Add((menuslide("QLD") * 10) + 3, Reset);
+            }          
         }
 
         private static void Spellbook_OnCastSpell(Spellbook sender, SpellbookCastSpellEventArgs args)
@@ -476,7 +450,7 @@ namespace KurisuRiven
                 if (menu.Item("combokey").GetValue<KeyBind>().Active)
                 {
                     ComboTarget(riventarget());
-                    TryIgnote(riventarget());
+                    //TryIgnote(riventarget());
                 }
             }
 
@@ -502,7 +476,7 @@ namespace KurisuRiven
                         //}
 
                         checkr();
-                        TryIgnote(riventarget());
+                        //TryIgnote(riventarget());
 
                         if (canq && !canhd && Utils.GameTimeTickCount - lasthd >= 300)
                         {
@@ -789,7 +763,7 @@ namespace KurisuRiven
         private static void ComboTarget(AIHeroClient target)
         {
             OrbTo(target);
-            TryIgnote(target);
+            //TryIgnote(target);
 
             var endq = player.Position.Extend(target.Position, q.Range + 35);
             var ende = player.Position.Extend(target.Position, e.Range + 35);
@@ -1513,7 +1487,7 @@ namespace KurisuRiven
                         break;
                     case "RivenTriCleave":
                         canq = false;
-                        //cc += 1;
+                        cc += 1;
                         didq = true;
                         didaa = false;
                         lastq = Utils.GameTimeTickCount;

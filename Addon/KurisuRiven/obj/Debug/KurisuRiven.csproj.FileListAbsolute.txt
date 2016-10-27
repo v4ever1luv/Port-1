@@ -68,4 +68,3 @@ E:\Git dev\VIP\KurisuRiven\bin\Release\SharpDX.dll
 E:\Git dev\VIP\KurisuRiven\bin\Release\Newtonsoft.Json.dll
 E:\Git dev\VIP\KurisuRiven\bin\Release\LeagueSharp.Data.dll
 E:\Git dev\VIP\KurisuRiven\bin\Release\EloBuddy.Sandbox.dll
-E:\Git dev\VIP\KurisuRiven\obj\Debug\KurisuRiven.csprojResolveAssemblyReference.cache

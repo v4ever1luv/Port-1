@@ -13,4 +13,3 @@ E:\Git dev\VIP\KurisuNidalee\bin\Release\LeagueSharp.Data.dll
 E:\Git dev\VIP\KurisuNidalee\bin\Release\EloBuddy.Sandbox.dll
 E:\Git dev\VIP\KurisuNidalee\obj\Debug\KurisuNidalee.exe
 E:\Git dev\VIP\KurisuNidalee\obj\Debug\KurisuNidalee.pdb
-E:\Git dev\VIP\KurisuNidalee\obj\Debug\KurisuNidalee.csprojResolveAssemblyReference.cache
