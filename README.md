@@ -12,6 +12,6 @@ Các bạn dùng cũng như giúp mình test luôn nhé, có lỗi gì thì báo
 
 
 
-Donate to me : paypal.me/cttbot
+Donate to me :  paypal.me/cttbot
 
 motivation :D
