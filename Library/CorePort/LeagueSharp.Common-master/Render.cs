@@ -7,6 +7,7 @@
     using System.IO;
     using System.Linq;
     using System.Threading;
+    using System.Diagnostics.CodeAnalysis;
 
     using SharpDX;
     using SharpDX.Direct3D9;
@@ -15,6 +16,8 @@
     using Color = System.Drawing.Color;
     using Font = SharpDX.Direct3D9.Font;
     using Rectangle = SharpDX.Rectangle;
+    using SharpDX.Text;
+    using Properties;
 
     /// <summary>
     ///     The render class allows you to draw stuff using SharpDX easier.
@@ -22,26 +25,18 @@
     public static class Render
     {
         #region Static Fields
-
-        /// <summary>
-        ///     The render objects
-        /// </summary>
-        private static readonly List<RenderObject> RenderObjects = new List<RenderObject>();
-
-        /// <summary>
-        ///     The render objects lock
-        /// </summary>
-        private static readonly object RenderObjectsLock = new object();
-
-        /// <summary>
-        ///     <c>true</c> if the thread should be canceled.
-        /// </summary>
-        private static bool _cancelThread;
-
         /// <summary>
         ///     The visible render objects.
         /// </summary>
         private static List<RenderObject> _renderVisibleObjects = new List<RenderObject>();
+
+        private static readonly List<RenderObject> RenderObjects = new List<RenderObject>();
+
+        private static readonly object RenderObjectsLock = new object();
+
+        private static List<RenderObject> renderVisibleObjects = new List<RenderObject>();
+
+        private static bool terminateThread;
 
         #endregion
 
@@ -52,8 +47,9 @@
         /// </summary>
         static Render()
         {
-            Drawing.OnEndScene += Drawing_OnEndScene;
-            Drawing.OnDraw += Drawing_OnDraw;
+            Drawing.OnEndScene += OnEndScne;
+            Drawing.OnDraw += OnDraw;
+
             var thread = new Thread(PrepareObjects);
             thread.SetApartmentState(ApartmentState.STA);
             thread.Start();
@@ -67,13 +63,7 @@
         ///     Gets the device.
         /// </summary>
         /// <value>The device.</value>
-        public static Device Device
-        {
-            get
-            {
-                return Drawing.Direct3DDevice;
-            }
-        }
+        public static Device Device => Drawing.Direct3DDevice;
 
         #endregion
 
@@ -92,6 +82,7 @@
             {
                 RenderObjects.Add(renderObject);
             }
+
             return renderObject;
         }
 
@@ -101,9 +92,7 @@
         /// <param name="point">The point.</param>
         /// <returns><c>true</c> if the point is on the screen, <c>false</c> otherwise.</returns>
         public static bool OnScreen(Vector2 point)
-        {
-            return point.X > 0 && point.Y > 0 && point.X < Drawing.Width && point.Y < Drawing.Height;
-        }
+            => point.X > 0 && point.Y > 0 && point.X < Drawing.Width && point.Y < Drawing.Height;
 
         /// <summary>
         ///     Removes the specified render object.
@@ -117,6 +106,8 @@
             }
         }
 
+        public static void Terminate() => terminateThread = true;
+
         #endregion
 
         #region Methods
@@ -125,14 +116,15 @@
         ///     Fired when the game is drawn.
         /// </summary>
         /// <param name="args">The <see cref="EventArgs" /> instance containing the event data.</param>
-        private static void Drawing_OnDraw(EventArgs args)
+
+        private static void OnDraw(EventArgs args)
         {
             if (Device == null || Device.IsDisposed)
             {
                 return;
             }
 
-            foreach (var renderObject in _renderVisibleObjects)
+            foreach (var renderObject in renderVisibleObjects)
             {
                 renderObject.OnDraw();
             }
@@ -142,7 +134,7 @@
         ///     Fired when the scene ends, and everything has been rendered.
         /// </summary>
         /// <param name="args">The <see cref="EventArgs" /> instance containing the event data.</param>
-        private static void Drawing_OnEndScene(EventArgs args)
+        private static void OnEndScne(EventArgs args)
         {
             if (Device == null || Device.IsDisposed)
             {
@@ -151,7 +143,7 @@
 
             Device.SetRenderState(RenderState.AlphaBlendEnable, true);
 
-            foreach (var renderObject in _renderVisibleObjects)
+            foreach (var renderObject in renderVisibleObjects)
             {
                 renderObject.OnEndScene();
             }
@@ -162,16 +154,16 @@
         /// </summary>
         private static void PrepareObjects()
         {
-            while (!_cancelThread)
+            while (!terminateThread)
             {
                 try
                 {
                     Thread.Sleep(1);
                     lock (RenderObjectsLock)
                     {
-                        _renderVisibleObjects =
-                            RenderObjects.Where(obj => obj.Visible && obj.HasValidLayer())
-                                .OrderBy(obj => obj.Layer)
+                        renderVisibleObjects =
+                            RenderObjects.Where(o => o != null && o.Visible && o.HasValidLayer())
+                                .OrderBy(o => o.Layer)
                                 .ToList();
                     }
                 }
@@ -198,12 +190,12 @@
             /// <summary>
             ///     The sprite effect
             /// </summary>
-            private static Effect _effect;
+            private static Effect Effect { get; set; }
 
             /// <summary>
             ///     <c>true</c> if this instanced initialized.
             /// </summary>
-            private static bool _initialized;
+            private static bool Initialized { get; set; }
 
             /// <summary>
             ///     The offset
@@ -211,29 +203,16 @@
             private static Vector3 _offset = new Vector3(0, 0, 0);
 
             /// <summary>
-            ///     The technique
-            /// </summary>
-            private static EffectHandle _technique;
-
-            /// <summary>
             ///     The vertex declaration
             /// </summary>
-            private static VertexDeclaration _vertexDeclaration;
+            private static VertexBuffer VertexBuffer { get; set; }
 
-            /// <summary>
-            ///     The vertex elements
-            /// </summary>
-            private static VertexElement[] _vertexElements;
-
-            /// <summary>
-            ///     The vertices
-            /// </summary>
-            private static VertexBuffer _vertices;
+            private static VertexDeclaration VertexDeclaration { get; set; }
 
             #endregion
 
             #region Constructors and Destructors
-
+            /*
             /// <summary>
             ///     Initializes a new instance of the <see cref="Circle" /> class.
             /// </summary>
@@ -314,6 +293,123 @@
                 this.Width = width;
                 this.ZDeep = zDeep;
                 this.SubscribeToResetEvents();
+            }//*/
+
+            #endregion
+
+            #region Constructors and Destructors
+
+            /// <summary>
+            ///     Initializes a new instance of the <see cref="Circle" /> class.
+            /// </summary>
+            /// <param name="unit">
+            ///     The unit.
+            /// </param>
+            /// <param name="radius">
+            ///     The radius.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="width">
+            ///     The width.
+            /// </param>
+            /// <param name="zDeep">
+            ///     A value indicating whether to enable depth.
+            /// </param>
+            public Circle(GameObject unit, float radius, Color color, int width = 1, bool zDeep = false)
+                : this(radius, color, width, zDeep)
+            {
+                this.Unit = unit;
+            }
+
+            /// <summary>
+            ///     Initializes a new instance of the <see cref="Circle" /> class.
+            /// </summary>
+            /// <param name="unit">
+            ///     The unit.
+            /// </param>
+            /// <param name="offset">
+            ///     The offset.
+            /// </param>
+            /// <param name="radius">
+            ///     The radius.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="width">
+            ///     The width.
+            /// </param>
+            /// <param name="zDeep">
+            ///     A value indicating whether to enable depth.
+            /// </param>
+            public Circle(GameObject unit, Vector3 offset, float radius, Color color, int width = 1, bool zDeep = false)
+                : this(radius, color, width, zDeep)
+            {
+                this.Unit = unit;
+                this.Offset = offset;
+            }
+
+            /// <summary>
+            ///     Initializes a new instance of the <see cref="Circle" /> class.
+            /// </summary>
+            /// <param name="pos">
+            ///     The position.
+            /// </param>
+            /// <param name="offset">
+            ///     The offset.
+            /// </param>
+            /// <param name="radius">
+            ///     The radius.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="width">
+            ///     The width.
+            /// </param>
+            /// <param name="zDeep">
+            ///     A value indicating whether to enable depth.
+            /// </param>
+            public Circle(Vector3 pos, Vector3 offset, float radius, Color color, int width = 1, bool zDeep = false)
+                : this(radius, color, width, zDeep)
+            {
+                this.Position = pos;
+                this.Offset = offset;
+            }
+
+            /// <summary>
+            ///     Initializes a new instance of the <see cref="Circle" /> class.
+            /// </summary>
+            /// <param name="pos">
+            ///     The position.
+            /// </param>
+            /// <param name="radius">
+            ///     The radius.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="width">
+            ///     The width.
+            /// </param>
+            /// <param name="zDeep">
+            ///     A value indicating whether to enable depth.
+            /// </param>
+            public Circle(Vector3 pos, float radius, Color color, int width = 1, bool zDeep = false)
+                : this(radius, color, width, zDeep)
+            {
+                this.Position = pos;
+            }
+
+            private Circle(float radius, Color color, int width, bool zDeep)
+            {
+                this.Radius = radius;
+                this.Color = color;
+                this.Width = width;
+                this.ZDeep = zDeep;
+                this.SubscribeToResetEvents();
             }
 
             #endregion
@@ -330,17 +426,7 @@
             ///     Gets or sets the offset.
             /// </summary>
             /// <value>The offset.</value>
-            public Vector3 Offset
-            {
-                get
-                {
-                    return _offset;
-                }
-                set
-                {
-                    _offset = value;
-                }
-            }
+            public Vector3 Offset { get; set; } = default(Vector3);
 
             /// <summary>
             ///     Gets or sets the position.
@@ -381,345 +467,56 @@
             /// </summary>
             public static void CreateVertexes()
             {
-                const float x = 6000f;
-                _vertices = new VertexBuffer(
-                    Device,
-                    Utilities.SizeOf<Vector4>() * 2 * 6,
-                    Usage.WriteOnly,
-                    VertexFormat.None,
-                    Pool.Managed);
+                const Usage Usage = Usage.WriteOnly;
+                const VertexFormat Format = VertexFormat.None;
+                const Pool Pool = Pool.Managed;
 
-                _vertices.Lock(0, 0, LockFlags.None).WriteRange(
-                    new[]
-                        {
-                            //T1
-                            new Vector4(-x, 0f, -x, 1.0f), new Vector4(), new Vector4(-x, 0f, x, 1.0f), new Vector4(),
-                            new Vector4(x, 0f, -x, 1.0f), new Vector4(),
+                var sizeInBytes = Utilities.SizeOf<Vector4>() * 2 * 6;
 
-                            //T2
-                            new Vector4(-x, 0f, x, 1.0f), new Vector4(), new Vector4(x, 0f, x, 1.0f), new Vector4(),
-                            new Vector4(x, 0f, -x, 1.0f), new Vector4()
-                        });
-                _vertices.Unlock();
+                VertexBuffer = new VertexBuffer(Device, sizeInBytes, Usage, Format, Pool);
+                SatisfyBuffer(VertexBuffer.Lock(0, 0, LockFlags.None));
+                VertexBuffer.Unlock();
 
-                _vertexElements = new[]
-                                      {
-                                          new VertexElement(
-                                              0,
-                                              0,
-                                              DeclarationType.Float4,
-                                              DeclarationMethod.Default,
-                                              DeclarationUsage.Position,
-                                              0),
-                                          new VertexElement(
-                                              0,
-                                              16,
-                                              DeclarationType.Float4,
-                                              DeclarationMethod.Default,
-                                              DeclarationUsage.Color,
-                                              0),
-                                          VertexElement.VertexDeclarationEnd
-                                      };
-
-                _vertexDeclaration = new VertexDeclaration(Device, _vertexElements);
-
-                #region Effect
+                var vertexElements = CreateVertexElements();
+                VertexDeclaration = new VertexDeclaration(Device, vertexElements);
 
                 try
                 {
-                    /*   
-                    _effect = Effect.FromString(Device, @"
-                    struct VS_S
-                     {
-                         float4 Position : POSITION;
-                         float4 Color : COLOR0;
-                         float4 Position3D : TEXCOORD0;
-                     };
-
-                     float4x4 ProjectionMatrix;
-                     float4 CircleColor;
-                     float Radius;
-                     float Border;
-                     bool zEnabled;
-                     VS_S VS( VS_S input )
-                     {
-                         VS_S output = (VS_S)0;
-    
-                         output.Position = mul(input.Position, ProjectionMatrix);
-                         output.Color = input.Color;
-                         output.Position3D = input.Position;
-                         return output;
-                     }
-
-                     float4 PS( VS_S input ) : COLOR
-                     {
-                         VS_S output = (VS_S)0;
-                         output = input;
-
-                         float4 v = output.Position3D; 
-                         float distance = Radius - sqrt(v.x * v.x + v.z*v.z); // Distance to the circle arc.
-    
-                         output.Color.x = CircleColor.x;
-                         output.Color.y = CircleColor.y;
-                         output.Color.z = CircleColor.z;
-                            
-                         if(distance < Border && distance > -Border)
-                         {
-                             output.Color.w = (CircleColor.w - CircleColor.w * abs(distance * 1.75 / Border));
-                         }
-                         else
-                         {
-                             output.Color.w = 0;
-                         }
-                            
-                         if(Border < 1 && distance >= 0)
-                         {
-                             output.Color.w = CircleColor.w;
-                         }
-
-                         return output.Color;
-                     }
-
-                     technique Main {
-                         pass P0 {
-                             ZEnable = zEnabled;
-                             AlphaBlendEnable = TRUE;
-                             DestBlend = INVSRCALPHA;
-                             SrcBlend = SRCALPHA;
-                             VertexShader = compile vs_2_0 VS();
-                             PixelShader  = compile ps_2_0 PS();
-                         }
-                     }", ShaderFlags.None);
-                    */
-                    var compiledEffect = new byte[]
-                                             {
-                                                 0x01, 0x09, 0xFF, 0xFE, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x03, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
-                                                 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x00, 0x00, 0x00,
-                                                 0x50, 0x72, 0x6F, 0x6A, 0x65, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x4D, 0x61,
-                                                 0x74, 0x72, 0x69, 0x78, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0xA4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x0C, 0x00, 0x00, 0x00, 0x43, 0x69, 0x72, 0x63,
-                                                 0x6C, 0x65, 0x43, 0x6F, 0x6C, 0x6F, 0x72, 0x00, 0x03, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0xD4, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x52, 0x61, 0x64, 0x69,
-                                                 0x75, 0x73, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x07, 0x00, 0x00, 0x00, 0x42, 0x6F, 0x72, 0x64, 0x65, 0x72, 0x00, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x01, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x00,
-                                                 0x7A, 0x45, 0x6E, 0x61, 0x62, 0x6C, 0x65, 0x64, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
-                                                 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x05, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x10, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
-                                                 0x0F, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
-                                                 0x50, 0x30, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x4D, 0x61, 0x69, 0x6E,
-                                                 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x03, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
-                                                 0x20, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x78, 0x00, 0x00, 0x00, 0x94, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0xB4, 0x00, 0x00, 0x00, 0xD0, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xE0, 0x00, 0x00, 0x00,
-                                                 0xFC, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x0C, 0x01, 0x00, 0x00, 0x28, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0xF4, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0xEC, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x40, 0x01, 0x00, 0x00, 0x3C, 0x01, 0x00, 0x00, 0x0D, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x60, 0x01, 0x00, 0x00, 0x5C, 0x01, 0x00, 0x00,
-                                                 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x01, 0x00, 0x00,
-                                                 0x7C, 0x01, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0xA0, 0x01, 0x00, 0x00, 0x9C, 0x01, 0x00, 0x00, 0x92, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0xC0, 0x01, 0x00, 0x00, 0xBC, 0x01, 0x00, 0x00,
-                                                 0x93, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xD8, 0x01, 0x00, 0x00,
-                                                 0xD4, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
-                                                 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4C, 0x04, 0x00, 0x00,
-                                                 0x00, 0x02, 0xFF, 0xFF, 0xFE, 0xFF, 0x38, 0x00, 0x43, 0x54, 0x41, 0x42,
-                                                 0x1C, 0x00, 0x00, 0x00, 0xAA, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0xFF,
-                                                 0x03, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20,
-                                                 0xA3, 0x00, 0x00, 0x00, 0x58, 0x00, 0x00, 0x00, 0x02, 0x00, 0x05, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00,
-                                                 0x80, 0x00, 0x00, 0x00, 0x02, 0x00, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x8C, 0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x9C, 0x00, 0x00, 0x00,
-                                                 0x02, 0x00, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00, 0x60, 0x00, 0x00, 0x00,
-                                                 0x70, 0x00, 0x00, 0x00, 0x42, 0x6F, 0x72, 0x64, 0x65, 0x72, 0x00, 0xAB,
-                                                 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x43, 0x69, 0x72, 0x63,
-                                                 0x6C, 0x65, 0x43, 0x6F, 0x6C, 0x6F, 0x72, 0x00, 0x01, 0x00, 0x03, 0x00,
-                                                 0x01, 0x00, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x52, 0x61, 0x64, 0x69, 0x75, 0x73, 0x00, 0x70, 0x73, 0x5F, 0x32, 0x5F,
-                                                 0x30, 0x00, 0x4D, 0x69, 0x63, 0x72, 0x6F, 0x73, 0x6F, 0x66, 0x74, 0x20,
-                                                 0x28, 0x52, 0x29, 0x20, 0x48, 0x4C, 0x53, 0x4C, 0x20, 0x53, 0x68, 0x61,
-                                                 0x64, 0x65, 0x72, 0x20, 0x43, 0x6F, 0x6D, 0x70, 0x69, 0x6C, 0x65, 0x72,
-                                                 0x20, 0x39, 0x2E, 0x32, 0x39, 0x2E, 0x39, 0x35, 0x32, 0x2E, 0x33, 0x31,
-                                                 0x31, 0x31, 0x00, 0xAB, 0xFE, 0xFF, 0x7C, 0x00, 0x50, 0x52, 0x45, 0x53,
-                                                 0x01, 0x02, 0x58, 0x46, 0xFE, 0xFF, 0x30, 0x00, 0x43, 0x54, 0x41, 0x42,
-                                                 0x1C, 0x00, 0x00, 0x00, 0x8B, 0x00, 0x00, 0x00, 0x01, 0x02, 0x58, 0x46,
-                                                 0x02, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x20,
-                                                 0x88, 0x00, 0x00, 0x00, 0x44, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x4C, 0x00, 0x00, 0x00, 0x5C, 0x00, 0x00, 0x00,
-                                                 0x6C, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x78, 0x00, 0x00, 0x00, 0x5C, 0x00, 0x00, 0x00, 0x42, 0x6F, 0x72, 0x64,
-                                                 0x65, 0x72, 0x00, 0xAB, 0x00, 0x00, 0x03, 0x00, 0x01, 0x00, 0x01, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x43, 0x69, 0x72, 0x63, 0x6C, 0x65, 0x43, 0x6F, 0x6C, 0x6F, 0x72, 0x00,
-                                                 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x04, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x74, 0x78, 0x00, 0x4D, 0x69, 0x63, 0x72, 0x6F,
-                                                 0x73, 0x6F, 0x66, 0x74, 0x20, 0x28, 0x52, 0x29, 0x20, 0x48, 0x4C, 0x53,
-                                                 0x4C, 0x20, 0x53, 0x68, 0x61, 0x64, 0x65, 0x72, 0x20, 0x43, 0x6F, 0x6D,
-                                                 0x70, 0x69, 0x6C, 0x65, 0x72, 0x20, 0x39, 0x2E, 0x32, 0x39, 0x2E, 0x39,
-                                                 0x35, 0x32, 0x2E, 0x33, 0x31, 0x31, 0x31, 0x00, 0xFE, 0xFF, 0x0C, 0x00,
-                                                 0x50, 0x52, 0x53, 0x49, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0xFE, 0xFF, 0x1A, 0x00, 0x43, 0x4C, 0x49, 0x54, 0x0C, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xBF,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0xFE, 0xFF, 0x1F, 0x00, 0x46, 0x58, 0x4C, 0x43, 0x03, 0x00, 0x00, 0x00,
-                                                 0x01, 0x00, 0x30, 0x10, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x40, 0xA0,
-                                                 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,
-                                                 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
-                                                 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
-                                                 0x04, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x10, 0x01, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00,
-                                                 0xF0, 0xF0, 0xF0, 0xF0, 0x0F, 0x0F, 0x0F, 0x0F, 0xFF, 0xFF, 0x00, 0x00,
-                                                 0x51, 0x00, 0x00, 0x05, 0x06, 0x00, 0x0F, 0xA0, 0x00, 0x00, 0xE0, 0x3F,
-                                                 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x00, 0x00,
-                                                 0x1F, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x07, 0xB0,
-                                                 0x05, 0x00, 0x00, 0x03, 0x00, 0x00, 0x08, 0x80, 0x00, 0x00, 0xAA, 0xB0,
-                                                 0x00, 0x00, 0xAA, 0xB0, 0x04, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x80,
-                                                 0x00, 0x00, 0x00, 0xB0, 0x00, 0x00, 0x00, 0xB0, 0x00, 0x00, 0xFF, 0x80,
-                                                 0x07, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x80,
-                                                 0x06, 0x00, 0x00, 0x02, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x80,
-                                                 0x02, 0x00, 0x00, 0x03, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x81,
-                                                 0x04, 0x00, 0x00, 0xA0, 0x02, 0x00, 0x00, 0x03, 0x00, 0x00, 0x02, 0x80,
-                                                 0x00, 0x00, 0x00, 0x81, 0x05, 0x00, 0x00, 0xA1, 0x58, 0x00, 0x00, 0x04,
-                                                 0x00, 0x00, 0x02, 0x80, 0x00, 0x00, 0x55, 0x80, 0x06, 0x00, 0x55, 0xA0,
-                                                 0x06, 0x00, 0xAA, 0xA0, 0x02, 0x00, 0x00, 0x03, 0x00, 0x00, 0x04, 0x80,
-                                                 0x00, 0x00, 0x00, 0x80, 0x05, 0x00, 0x00, 0xA1, 0x58, 0x00, 0x00, 0x04,
-                                                 0x00, 0x00, 0x02, 0x80, 0x00, 0x00, 0xAA, 0x80, 0x06, 0x00, 0x55, 0xA0,
-                                                 0x00, 0x00, 0x55, 0x80, 0x05, 0x00, 0x00, 0x03, 0x00, 0x00, 0x04, 0x80,
-                                                 0x00, 0x00, 0x00, 0x80, 0x06, 0x00, 0x00, 0xA0, 0x58, 0x00, 0x00, 0x04,
-                                                 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x00, 0x80, 0x06, 0x00, 0xAA, 0xA0,
-                                                 0x06, 0x00, 0x55, 0xA0, 0x01, 0x00, 0x00, 0x02, 0x00, 0x00, 0x08, 0x80,
-                                                 0x06, 0x00, 0x55, 0xA0, 0x58, 0x00, 0x00, 0x04, 0x00, 0x00, 0x01, 0x80,
-                                                 0x01, 0x00, 0x00, 0xA0, 0x00, 0x00, 0xFF, 0x80, 0x00, 0x00, 0x00, 0x80,
-                                                 0x05, 0x00, 0x00, 0x03, 0x00, 0x00, 0x04, 0x80, 0x00, 0x00, 0xAA, 0x80,
-                                                 0x00, 0x00, 0x00, 0xA0, 0x23, 0x00, 0x00, 0x02, 0x00, 0x00, 0x04, 0x80,
-                                                 0x00, 0x00, 0xAA, 0x80, 0x04, 0x00, 0x00, 0x04, 0x00, 0x00, 0x04, 0x80,
-                                                 0x03, 0x00, 0xFF, 0xA0, 0x00, 0x00, 0xAA, 0x81, 0x03, 0x00, 0xFF, 0xA0,
-                                                 0x58, 0x00, 0x00, 0x04, 0x00, 0x00, 0x02, 0x80, 0x00, 0x00, 0x55, 0x80,
-                                                 0x06, 0x00, 0xFF, 0xA0, 0x00, 0x00, 0xAA, 0x80, 0x58, 0x00, 0x00, 0x04,
-                                                 0x00, 0x00, 0x08, 0x80, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x55, 0x80,
-                                                 0x03, 0x00, 0xFF, 0xA0, 0x01, 0x00, 0x00, 0x02, 0x00, 0x00, 0x07, 0x80,
-                                                 0x02, 0x00, 0xE4, 0xA0, 0x01, 0x00, 0x00, 0x02, 0x00, 0x08, 0x0F, 0x80,
-                                                 0x00, 0x00, 0xE4, 0x80, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x04, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x4C, 0x01, 0x00, 0x00, 0x00, 0x02, 0xFE, 0xFF,
-                                                 0xFE, 0xFF, 0x34, 0x00, 0x43, 0x54, 0x41, 0x42, 0x1C, 0x00, 0x00, 0x00,
-                                                 0x9B, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFE, 0xFF, 0x01, 0x00, 0x00, 0x00,
-                                                 0x1C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x94, 0x00, 0x00, 0x00,
-                                                 0x30, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00,
-                                                 0x44, 0x00, 0x00, 0x00, 0x54, 0x00, 0x00, 0x00, 0x50, 0x72, 0x6F, 0x6A,
-                                                 0x65, 0x63, 0x74, 0x69, 0x6F, 0x6E, 0x4D, 0x61, 0x74, 0x72, 0x69, 0x78,
-                                                 0x00, 0xAB, 0xAB, 0xAB, 0x03, 0x00, 0x03, 0x00, 0x04, 0x00, 0x04, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x76, 0x73, 0x5F, 0x32, 0x5F, 0x30, 0x00, 0x4D, 0x69, 0x63, 0x72, 0x6F,
-                                                 0x73, 0x6F, 0x66, 0x74, 0x20, 0x28, 0x52, 0x29, 0x20, 0x48, 0x4C, 0x53,
-                                                 0x4C, 0x20, 0x53, 0x68, 0x61, 0x64, 0x65, 0x72, 0x20, 0x43, 0x6F, 0x6D,
-                                                 0x70, 0x69, 0x6C, 0x65, 0x72, 0x20, 0x39, 0x2E, 0x32, 0x39, 0x2E, 0x39,
-                                                 0x35, 0x32, 0x2E, 0x33, 0x31, 0x31, 0x31, 0x00, 0x1F, 0x00, 0x00, 0x02,
-                                                 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x0F, 0x90, 0x1F, 0x00, 0x00, 0x02,
-                                                 0x0A, 0x00, 0x00, 0x80, 0x01, 0x00, 0x0F, 0x90, 0x09, 0x00, 0x00, 0x03,
-                                                 0x00, 0x00, 0x01, 0xC0, 0x00, 0x00, 0xE4, 0x90, 0x00, 0x00, 0xE4, 0xA0,
-                                                 0x09, 0x00, 0x00, 0x03, 0x00, 0x00, 0x02, 0xC0, 0x00, 0x00, 0xE4, 0x90,
-                                                 0x01, 0x00, 0xE4, 0xA0, 0x09, 0x00, 0x00, 0x03, 0x00, 0x00, 0x04, 0xC0,
-                                                 0x00, 0x00, 0xE4, 0x90, 0x02, 0x00, 0xE4, 0xA0, 0x09, 0x00, 0x00, 0x03,
-                                                 0x00, 0x00, 0x08, 0xC0, 0x00, 0x00, 0xE4, 0x90, 0x03, 0x00, 0xE4, 0xA0,
-                                                 0x01, 0x00, 0x00, 0x02, 0x00, 0x00, 0x0F, 0xD0, 0x01, 0x00, 0xE4, 0x90,
-                                                 0x01, 0x00, 0x00, 0x02, 0x00, 0x00, 0x0F, 0xE0, 0x00, 0x00, 0xE4, 0x90,
-                                                 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0xE0, 0x00, 0x00, 0x00, 0x00, 0x02, 0x58, 0x46, 0xFE, 0xFF, 0x25, 0x00,
-                                                 0x43, 0x54, 0x41, 0x42, 0x1C, 0x00, 0x00, 0x00, 0x5F, 0x00, 0x00, 0x00,
-                                                 0x00, 0x02, 0x58, 0x46, 0x01, 0x00, 0x00, 0x00, 0x1C, 0x00, 0x00, 0x00,
-                                                 0x00, 0x01, 0x00, 0x20, 0x5C, 0x00, 0x00, 0x00, 0x30, 0x00, 0x00, 0x00,
-                                                 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x3C, 0x00, 0x00, 0x00,
-                                                 0x4C, 0x00, 0x00, 0x00, 0x7A, 0x45, 0x6E, 0x61, 0x62, 0x6C, 0x65, 0x64,
-                                                 0x00, 0xAB, 0xAB, 0xAB, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00,
-                                                 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x74, 0x78, 0x00, 0x4D, 0x69, 0x63, 0x72, 0x6F, 0x73, 0x6F, 0x66, 0x74,
-                                                 0x20, 0x28, 0x52, 0x29, 0x20, 0x48, 0x4C, 0x53, 0x4C, 0x20, 0x53, 0x68,
-                                                 0x61, 0x64, 0x65, 0x72, 0x20, 0x43, 0x6F, 0x6D, 0x70, 0x69, 0x6C, 0x65,
-                                                 0x72, 0x20, 0x39, 0x2E, 0x32, 0x39, 0x2E, 0x39, 0x35, 0x32, 0x2E, 0x33,
-                                                 0x31, 0x31, 0x31, 0x00, 0xFE, 0xFF, 0x02, 0x00, 0x43, 0x4C, 0x49, 0x54,
-                                                 0x00, 0x00, 0x00, 0x00, 0xFE, 0xFF, 0x0C, 0x00, 0x46, 0x58, 0x4C, 0x43,
-                                                 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x10, 0x01, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                                                 0xF0, 0xF0, 0xF0, 0xF0, 0x0F, 0x0F, 0x0F, 0x0F, 0xFF, 0xFF, 0x00, 0x00
-                                             };
-                    _effect = Effect.FromMemory(Device, compiledEffect, ShaderFlags.None);
+                    var effect = Encoding.UTF8.GetString(Resources.CircleEffect);
+                    Effect = Effect.FromString(Device, effect, ShaderFlags.None);
                 }
                 catch (Exception e)
                 {
                     Console.WriteLine(e);
-                    return;
                 }
 
-                #endregion
-
-                _technique = _effect.GetTechnique(0);
-
-                if (!_initialized)
+                if (!Initialized)
                 {
-                    _initialized = true;
+                    Initialized = true;
                     Drawing.OnPreReset += OnPreReset;
-                    Drawing.OnPreReset += OnPostReset;
-                    AppDomain.CurrentDomain.DomainUnload += Dispose;
+                    Drawing.OnPostReset += OnPostReset;
                 }
             }
+            private static VertexElement[] CreateVertexElements()
+                =>
+                new[]
+                    {
+                        new VertexElement(
+                            0,
+                            0,
+                            DeclarationType.Float4,
+                            DeclarationMethod.Default,
+                            DeclarationUsage.Position,
+                            0),
+                        new VertexElement(
+                            0,
+                            16,
+                            DeclarationType.Float4,
+                            DeclarationMethod.Default,
+                            DeclarationUsage.Color,
+                            0),
+                        VertexElement.VertexDeclarationEnd
+                    };
 
             /// <summary>
             ///     Draws the circle.
@@ -728,61 +525,54 @@
             /// <param name="radius">The radius.</param>
             /// <param name="color">The color.</param>
             /// <param name="width">The width.</param>
-            /// <param name="zDeep">if set to <c>true</c> the circle will be drawn with depth buffering.</param>
-            public static void DrawCircle(
-                Vector3 position,
-                float radius,
-                Color color,
-                int width = 5,
-                bool zDeep = false)
+            /// <param name="zDeep">if set to <c>true</c> the circle will be drawn with depth buffering.</param>           
+            public static void DrawCircle(Vector3 pos, float radius, Color color, int width = 5, bool zDeep = false)
             {
+                if (Device == null || Device.IsDisposed)
+                {
+                    return;
+                }
+
+                if (VertexBuffer == null)
+                {
+                    CreateVertexes();
+                }
+
+                if ((VertexBuffer?.IsDisposed ?? false) || VertexDeclaration.IsDisposed || Effect.IsDisposed)
+                {
+                    return;
+                }
+
                 try
                 {
-                    if (Device == null || Device.IsDisposed)
-                    {
-                        return;
-                    }
+                    var vertexDeclaration = Device.VertexDeclaration;
 
-                    if (_vertices == null)
-                    {
-                        CreateVertexes();
-                    }
+                    Effect.Begin();
+                    Effect.BeginPass(0);
 
-                    if (_vertices == null || _vertices.IsDisposed || _vertexDeclaration.IsDisposed || _effect.IsDisposed
-                        || _technique.IsDisposed)
-                    {
-                        return;
-                    }
-
-                    var olddec = Device.VertexDeclaration;
-
-                    _effect.Technique = _technique;
-
-                    _effect.Begin();
-                    _effect.BeginPass(0);
-                    _effect.SetValue(
+                    Effect.SetValue(
                         "ProjectionMatrix",
-                        Matrix.Translation(position.SwitchYZ()) * Drawing.View * Drawing.Projection);
-                    _effect.SetValue(
+                        Matrix.Translation(pos.SwitchYZ()) * Drawing.View * Drawing.Projection);
+                    Effect.SetValue(
                         "CircleColor",
                         new Vector4(color.R / 255f, color.G / 255f, color.B / 255f, color.A / 255f));
-                    _effect.SetValue("Radius", radius);
-                    _effect.SetValue("Border", 2f + width);
-                    _effect.SetValue("zEnabled", zDeep);
+                    Effect.SetValue("Radius", radius);
+                    Effect.SetValue("Border", 2f + width);
+                    Effect.SetValue("zEnabled", zDeep);
 
-                    Device.SetStreamSource(0, _vertices, 0, Utilities.SizeOf<Vector4>() * 2);
-                    Device.VertexDeclaration = _vertexDeclaration;
+                    Device.SetStreamSource(0, VertexBuffer, 0, Utilities.SizeOf<Vector4>() * 2);
+                    Device.VertexDeclaration = VertexDeclaration;
 
                     Device.DrawPrimitives(PrimitiveType.TriangleList, 0, 2);
 
-                    _effect.EndPass();
-                    _effect.End();
+                    Effect.EndPass();
+                    Effect.End();
 
-                    Device.VertexDeclaration = olddec;
+                    Device.VertexDeclaration = vertexDeclaration;
                 }
                 catch (Exception e)
                 {
-                    _vertices = null;
+                    Dispose(null, EventArgs.Empty);
                     Console.WriteLine(@"DrawCircle: " + e);
                 }
             }
@@ -794,13 +584,19 @@
             {
                 try
                 {
-                    if (this.Unit != null && this.Unit.IsValid)
+                    var position = default(Vector3);
+                    if (this.Unit?.IsValid ?? false)
                     {
-                        DrawCircle(this.Unit.Position + _offset, this.Radius, this.Color, this.Width, this.ZDeep);
+                        position = this.Unit.Position + this.Offset;
                     }
-                    else if ((this.Position + _offset).To2D().IsValid())
+                    else if (!(this.Position + this.Offset).To2D().IsZero)
                     {
-                        DrawCircle(this.Position + _offset, this.Radius, this.Color, this.Width, this.ZDeep);
+                        position = this.Position + this.Offset;
+                    }
+
+                    if (!position.IsZero)
+                    {
+                        DrawCircle(position, this.Radius, this.Color, this.Width, this.ZDeep);
                     }
                 }
                 catch (Exception e)
@@ -818,23 +614,24 @@
             /// </summary>
             /// <param name="sender">The sender.</param>
             /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
-            private static void Dispose(object sender, EventArgs e)
+            internal static void Dispose(object sender, EventArgs e)
             {
+                Initialized = false;
                 OnPreReset(EventArgs.Empty);
 
-                if (_effect != null && !_effect.IsDisposed)
+                if (Effect != null && !Effect.IsDisposed)
                 {
-                    _effect.Dispose();
+                    Effect.Dispose();
                 }
 
-                if (_vertices != null && !_vertices.IsDisposed)
+                if (VertexBuffer != null && !VertexBuffer.IsDisposed)
                 {
-                    _vertices.Dispose();
+                    VertexBuffer.Dispose();
                 }
 
-                if (_vertexDeclaration != null && !_vertexDeclaration.IsDisposed)
+                if (VertexDeclaration != null && !VertexDeclaration.IsDisposed)
                 {
-                    _vertexDeclaration.Dispose();
+                    VertexDeclaration.Dispose();
                 }
             }
 
@@ -844,9 +641,9 @@
             /// <param name="args">The <see cref="EventArgs" /> instance containing the event data.</param>
             private static void OnPostReset(EventArgs args)
             {
-                if (_effect != null && !_effect.IsDisposed)
+                if (Effect != null && !Effect.IsDisposed)
                 {
-                    _effect.OnResetDevice();
+                    Effect.OnResetDevice();
                 }
             }
 
@@ -856,10 +653,33 @@
             /// <param name="args">The <see cref="EventArgs" /> instance containing the event data.</param>
             private static void OnPreReset(EventArgs args)
             {
-                if (_effect != null && !_effect.IsDisposed)
+                if (Effect != null && !Effect.IsDisposed)
                 {
-                    _effect.OnLostDevice();
+                    Effect.OnLostDevice();
                 }
+            }
+
+            private static void SatisfyBuffer(DataStream dataStream)
+            {
+                const float X = 6000f;
+                var range = new Vector4[12];
+
+                for (var i = 1; i < range.Length; i += 2)
+                {
+                    range[i] = Vector4.Zero;
+                }
+
+                // T1
+                range[0] = new Vector4(-X, 0f, -X, 1.0f);
+                range[2] = new Vector4(-X, 0f, X, 1.0f);
+                range[4] = new Vector4(X, 0f, -X, 1.0f);
+
+                // T2
+                range[6] = new Vector4(-X, 0f, X, 1.0f);
+                range[8] = new Vector4(X, 0f, X, 1.0f);
+                range[10] = new Vector4(X, 0f, -X, 1.0f);
+
+                dataStream.WriteRange(range);
             }
 
             #endregion
@@ -872,20 +692,7 @@
         {
             #region Fields
 
-            /// <summary>
-            ///     The color
-            /// </summary>
-            public ColorBGRA Color;
-
-            /// <summary>
-            ///     The DirectX line
-            /// </summary>
-            private readonly SharpDX.Direct3D9.Line _line;
-
-            /// <summary>
-            ///     The width
-            /// </summary>
-            private int _width;
+            private int width;
 
             #endregion
 
@@ -894,18 +701,28 @@
             /// <summary>
             ///     Initializes a new instance of the <see cref="Line" /> class.
             /// </summary>
-            /// <param name="start">The start.</param>
-            /// <param name="end">The end.</param>
-            /// <param name="width">The width.</param>
-            /// <param name="color">The color.</param>
+            /// <param name="start">
+            ///     The start.
+            /// </param>
+            /// <param name="end">
+            ///     The end.
+            /// </param>
+            /// <param name="width">
+            ///     The width.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
             public Line(Vector2 start, Vector2 end, int width, ColorBGRA color)
             {
-                this._line = new SharpDX.Direct3D9.Line(Device);
+                this.DeviceLine = new SharpDX.Direct3D9.Line(Device);
+
                 this.Width = width;
                 this.Color = color;
                 this.Start = start;
                 this.End = end;
-                Game.OnUpdate += this.GameOnOnUpdate;
+
+                Game.OnUpdate += this.OnUpdate;
                 this.SubscribeToResetEvents();
             }
 
@@ -914,9 +731,11 @@
             #region Delegates
 
             /// <summary>
-            ///     Delegate to get the position of the line.
+            ///     The position update delegate.
             /// </summary>
-            /// <returns>Vector2.</returns>
+            /// <returns>
+            ///     The <see cref="Vector2" />.
+            /// </returns>
             public delegate Vector2 PositionDelegate();
 
             #endregion
@@ -924,78 +743,70 @@
             #region Public Properties
 
             /// <summary>
-            ///     Gets or sets the end.
+            ///     Gets or sets the color.
             /// </summary>
-            /// <value>The end.</value>
+            public ColorBGRA Color { get; set; }
+
+            /// <summary>
+            ///     Gets or sets the ending position.
+            /// </summary>
             public Vector2 End { get; set; }
 
             /// <summary>
-            ///     Gets or sets the delegate that gets the end position.
+            ///     Gets or sets the end position update.
             /// </summary>
-            /// <value>The end position update.</value>
             public PositionDelegate EndPositionUpdate { get; set; }
 
             /// <summary>
-            ///     Gets or sets the start.
+            ///     Gets or sets the starting position.
             /// </summary>
-            /// <value>The start.</value>
             public Vector2 Start { get; set; }
 
             /// <summary>
-            ///     Gets or sets the delegate that sets the start position.
+            ///     Gets or sets the start position update.
             /// </summary>
-            /// <value>The start position update.</value>
             public PositionDelegate StartPositionUpdate { get; set; }
 
             /// <summary>
-            ///     Gets or sets the width.
+            ///     Gets or sets the line width.
             /// </summary>
-            /// <value>The width.</value>
             public int Width
             {
                 get
                 {
-                    return this._width;
+                    return this.width;
                 }
+
                 set
                 {
-                    this._line.Width = value;
-                    this._width = value;
+                    this.DeviceLine.Width = value;
+                    this.width = value;
                 }
             }
 
             #endregion
 
+            #region Properties
+
+            private SharpDX.Direct3D9.Line DeviceLine { get; }
+
+            #endregion
+
             #region Public Methods and Operators
 
-            /// <summary>
-            ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-            /// </summary>
-            public override void Dispose()
-            {
-                this.OnPreReset();
-                if (!this._line.IsDisposed)
-                {
-                    this._line.Dispose();
-                }
-                Game.OnUpdate -= this.GameOnOnUpdate;
-            }
-
-            /// <summary>
-            ///     Called when the scene has ended.
-            /// </summary>
+            /// <inheritdoc />
             public override void OnEndScene()
             {
+                if (this.DeviceLine == null || this.DeviceLine.IsDisposed)
+                {
+                    return;
+                }
+
                 try
                 {
-                    if (this._line.IsDisposed)
-                    {
-                        return;
-                    }
-
-                    this._line.Begin();
-                    this._line.Draw(new[] { this.Start, this.End }, this.Color);
-                    this._line.End();
+                    this.DeviceLine.Begin();
+                    this.DeviceLine.Draw(new[] { this.Start, this.End }, this.Color);
+                    this.DeviceLine.End();
                 }
                 catch (Exception e)
                 {
@@ -1003,31 +814,38 @@
                 }
             }
 
-            /// <summary>
-            ///     Called after the DirectX is reset.
-            /// </summary>
-            public void OnPostReset(EventArgs args)
+            /// <inheritdoc />
+            public override void OnPostReset()
             {
-                this._line.OnResetDevice();
+                base.OnPostReset();
+                this.DeviceLine?.OnResetDevice();
             }
 
-            /// <summary>
-            ///     Called before the DirectX device is reset.
-            /// </summary>
-            public void OnPreReset(EventArgs args)
+            /// <inheritdoc />
+            public override void OnPreReset()
             {
-                this._line.OnLostDevice();
+                base.OnPreReset();
+                this.DeviceLine?.OnLostDevice();
             }
 
             #endregion
 
             #region Methods
 
-            /// <summary>
-            ///     Games the on on update.
-            /// </summary>
-            /// <param name="args">The <see cref="EventArgs" /> instance containing the event data.</param>
-            private void GameOnOnUpdate(EventArgs args)
+            /// <inheritdoc />
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+
+                if (!this.DeviceLine.IsDisposed)
+                {
+                    this.DeviceLine.Dispose();
+                }
+
+                Game.OnUpdate -= this.OnUpdate;
+            }
+
+            private void OnUpdate(EventArgs args)
             {
                 if (this.StartPositionUpdate != null)
                 {
@@ -1048,39 +866,37 @@
         /// </summary>
         public class Rectangle : RenderObject
         {
-            #region Fields
-
-            /// <summary>
-            ///     The color of the rectangle
-            /// </summary>
-            public ColorBGRA Color;
-
-            /// <summary>
-            ///     The DirectX line
-            /// </summary>
-            private readonly SharpDX.Direct3D9.Line _line;
-
-            #endregion
-
             #region Constructors and Destructors
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Rectangle" /> class.
             /// </summary>
-            /// <param name="x">The x.</param>
-            /// <param name="y">The y.</param>
-            /// <param name="width">The width.</param>
-            /// <param name="height">The height.</param>
-            /// <param name="color">The color.</param>
+            /// <param name="x">
+            ///     The X-axis of the position.
+            /// </param>
+            /// <param name="y">
+            ///     The Y-axis of the position.
+            /// </param>
+            /// <param name="width">
+            ///     The width.
+            /// </param>
+            /// <param name="height">
+            ///     The height.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
             public Rectangle(int x, int y, int width, int height, ColorBGRA color)
             {
+                this.DeviceLine = new SharpDX.Direct3D9.Line(Device) { Width = height };
+
                 this.X = x;
                 this.Y = y;
                 this.Width = width;
                 this.Height = height;
                 this.Color = color;
-                this._line = new SharpDX.Direct3D9.Line(Device) { Width = height };
-                Game.OnUpdate += this.Game_OnUpdate;
+
+                Game.OnUpdate += this.OnUpdate;
                 this.SubscribeToResetEvents();
             }
 
@@ -1089,9 +905,11 @@
             #region Delegates
 
             /// <summary>
-            ///     Delegate to get the position of the rectangle.
+            ///     The position update delegate.
             /// </summary>
-            /// <returns>Vector2.</returns>
+            /// <returns>
+            ///     The <see cref="Vector2" />.
+            /// </returns>
             public delegate Vector2 PositionDelegate();
 
             #endregion
@@ -1099,73 +917,64 @@
             #region Public Properties
 
             /// <summary>
+            ///     Gets or sets the color.
+            /// </summary>
+            public ColorBGRA Color { get; set; }
+
+            /// <summary>
             ///     Gets or sets the height.
             /// </summary>
-            /// <value>The height.</value>
             public int Height { get; set; }
 
             /// <summary>
-            ///     Gets or sets the delegate that gets the position.
+            ///     Gets or sets the position update.
             /// </summary>
-            /// <value>The position update.</value>
             public PositionDelegate PositionUpdate { get; set; }
 
             /// <summary>
             ///     Gets or sets the width.
             /// </summary>
-            /// <value>The width.</value>
             public int Width { get; set; }
 
             /// <summary>
-            ///     Gets or sets the x.
+            ///     Gets or sets the X-axis of the position.
             /// </summary>
-            /// <value>The x.</value>
             public int X { get; set; }
 
             /// <summary>
-            ///     Gets or sets the y.
+            ///     Gets or sets the Y-axis of the position.
             /// </summary>
-            /// <value>The y.</value>
             public int Y { get; set; }
+
+            #endregion
+
+            #region Properties
+
+            private SharpDX.Direct3D9.Line DeviceLine { get; }
 
             #endregion
 
             #region Public Methods and Operators
 
-            /// <summary>
-            ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
-            /// </summary>
-            public override void Dispose()
-            {
-                this.OnPreReset();
-                if (!this._line.IsDisposed)
-                {
-                    this._line.Dispose();
-                }
-                Game.OnUpdate -= this.Game_OnUpdate;
-            }
-
-            /// <summary>
-            ///     Called when [end scene].
-            /// </summary>
+            /// <inheritdoc />
             public override void OnEndScene()
             {
+                if (this.DeviceLine == null || this.DeviceLine.IsDisposed)
+                {
+                    return;
+                }
+
                 try
                 {
-                    if (this._line.IsDisposed)
-                    {
-                        return;
-                    }
-
-                    this._line.Begin();
-                    this._line.Draw(
+                    this.DeviceLine.Begin();
+                    this.DeviceLine.Draw(
                         new[]
                             {
-                                new Vector2(this.X, this.Y + this.Height / 2),
-                                new Vector2(this.X + this.Width, this.Y + this.Height / 2)
+                                new Vector2(this.X, this.Y + (this.Height / 2)),
+                                new Vector2(this.X + this.Width, this.Y + (this.Height / 2))
                             },
                         this.Color);
-                    this._line.End();
+                    this.DeviceLine.End();
                 }
                 catch (Exception e)
                 {
@@ -1173,31 +982,30 @@
                 }
             }
 
-            /// <summary>
-            ///     Called after the DirectX device is reset.
-            /// </summary>
-            public void OnPostReset(EventArgs args)
-            {
-                this._line.OnResetDevice();
-            }
+            /// <inheritdoc />
+            public override void OnPostReset() => this.DeviceLine.OnResetDevice();
 
-            /// <summary>
-            ///     Called before the DirectX device is reset.
-            /// </summary>
-            public void OnPreReset(EventArgs args)
-            {
-                this._line.OnLostDevice();
-            }
+            /// <inheritdoc />
+            public override void OnPreReset() => this.DeviceLine.OnLostDevice();
 
             #endregion
 
             #region Methods
 
-            /// <summary>
-            ///     Fired when the game is updated.
-            /// </summary>
-            /// <param name="args">The <see cref="EventArgs" /> instance containing the event data.</param>
-            private void Game_OnUpdate(EventArgs args)
+            /// <inheritdoc />
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+
+                if (!this.DeviceLine.IsDisposed)
+                {
+                    this.DeviceLine.Dispose();
+                }
+
+                Game.OnUpdate -= this.OnUpdate;
+            }
+
+            private void OnUpdate(EventArgs args)
             {
                 if (this.PositionUpdate != null)
                 {
@@ -1217,28 +1025,18 @@
         {
             #region Fields
 
-            /// <summary>
-            ///     The layer
-            /// </summary>
-            public float Layer = 0.0f;
-
-            /// <summary>
-            ///     The visible condition delegate.
-            /// </summary>
-            public VisibleConditionDelegate VisibleCondition;
-
-            /// <summary>
-            ///     <c>true</c> if the render object is visible
-            /// </summary>
-            private bool _visible = true;
+            private bool visible = true;
 
             #endregion
 
             #region Constructors and Destructors
 
+            /// <summary>
+            ///     Finalizes an instance of the <see cref="RenderObject" /> class.
+            /// </summary>
             ~RenderObject()
             {
-                this.OnPreReset();
+                this.Dispose(false);
             }
 
             #endregion
@@ -1246,10 +1044,14 @@
             #region Delegates
 
             /// <summary>
-            ///     Delegate that gets if the object is visible.
+            ///     The visible condition delegate.
             /// </summary>
-            /// <param name="sender">The sender.</param>
-            /// <returns><c>true</c> if the object is visible, <c>false</c> otherwise.</returns>
+            /// <param name="sender">
+            ///     The sender.
+            /// </param>
+            /// <returns>
+            ///     The <see cref="bool" />.
+            /// </returns>
             public delegate bool VisibleConditionDelegate(RenderObject sender);
 
             #endregion
@@ -1257,20 +1059,44 @@
             #region Public Properties
 
             /// <summary>
-            ///     Gets or sets a value indicating whether this <see cref="RenderObject" /> is visible.
+            ///     Gets a value indicating whether the render object was dispoed.
             /// </summary>
-            /// <value><c>true</c> if visible; otherwise, <c>false</c>.</value>
+            public bool IsDisposed { get; private set; }
+
+            /// <summary>
+            ///     Gets or sets the layer.
+            /// </summary>
+            public float Layer { get; set; } = 0.0f;
+
+            /// <summary>
+            ///     Gets or sets a value indicating whether the render object is visible.
+            /// </summary>
             public bool Visible
             {
                 get
                 {
-                    return this.VisibleCondition != null ? this.VisibleCondition(this) : this._visible;
+                    return this.VisibleCondition?.Invoke(this) ?? this.visible;
                 }
+
                 set
                 {
-                    this._visible = value;
+                    this.visible = value;
                 }
             }
+
+            /// <summary>
+            ///     Gets or sets the visible condition.
+            /// </summary>
+            public VisibleConditionDelegate VisibleCondition { get; set; }
+
+            #endregion
+
+            #region Properties
+
+            /// <summary>
+            ///     Gets the log.
+            /// </summary>
+            //protected ILog Log { get; } = AssemblyLogs.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
             #endregion
 
@@ -1279,55 +1105,98 @@
             /// <summary>
             ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
             /// </summary>
-            public virtual void Dispose()
+            public void Dispose()
             {
+                this.OnPreReset();
+                this.Dispose(true);
             }
 
             /// <summary>
-            ///     Determines whether this instace has a valid layer.
+            ///     Determines if the render object has a valid layer.
             /// </summary>
-            /// <returns><c>true</c> if has a valid layer; otherwise, <c>false</c>.</returns>
+            /// <returns>
+            ///     The <see cref="bool" />.
+            /// </returns>
             public bool HasValidLayer()
             {
                 return this.Layer >= -5 && this.Layer <= 5;
             }
 
             /// <summary>
-            ///     Called when the render object is drawn.
+            ///     The draw event callback.
             /// </summary>
             public virtual void OnDraw()
             {
             }
 
             /// <summary>
-            ///     Called when the scene has ended..
+            ///     The endscene event callback.
             /// </summary>
             public virtual void OnEndScene()
             {
             }
 
             /// <summary>
-            ///     Called after the DirectX device is reset.
+            ///     The post-reset event callback.
             /// </summary>
             public virtual void OnPostReset()
             {
             }
 
             /// <summary>
-            ///     Called before the DirectX device is reset.
+            ///     The pre-reset event callback.
             /// </summary>
             public virtual void OnPreReset()
             {
             }
+
             #endregion
 
             #region Methods
 
+            /// <summary>
+            ///     Subscribers to D3D9 reset event.
+            /// </summary>
             internal void SubscribeToResetEvents()
             {
-           //     Drawing.OnPreReset += delegate { this.OnPreReset(); };
-           //     Drawing.OnPostReset += delegate { this.OnPostReset(); };
-                AppDomain.CurrentDomain.DomainUnload += delegate { this.OnPreReset(); };
+                Drawing.OnPreReset += this.DrawingOnOnPreReset;
+                Drawing.OnPostReset += this.DrawingOnOnPostReset;
+                AppDomain.CurrentDomain.DomainUnload += this.CurrentDomainOnDomainUnload;
+            }
+
+            /// <summary>
+            ///     Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+            /// </summary>
+            /// <param name="disposing">
+            ///     A value indicating whether the call is disposing managed resources.
+            /// </param>
+            protected virtual void Dispose(bool disposing)
+            {
+                if (this.IsDisposed)
+                {
+                    return;
+                }
+
+                Drawing.OnPreReset -= this.DrawingOnOnPreReset;
+                Drawing.OnPostReset -= this.DrawingOnOnPostReset;
+                AppDomain.CurrentDomain.DomainUnload -= this.CurrentDomainOnDomainUnload;
+
+                this.IsDisposed = true;
+            }
+
+            private void CurrentDomainOnDomainUnload(object sender, EventArgs eventArgs)
+            {
+                this.OnPostReset();
+            }
+
+            private void DrawingOnOnPostReset(EventArgs args)
+            {
+                this.OnPostReset();
+            }
+
+            private void DrawingOnOnPreReset(EventArgs args)
+            {
+                this.OnPreReset();
             }
 
             #endregion
@@ -1338,52 +1207,17 @@
         /// </summary>
         public class Sprite : RenderObject
         {
-            #region Fields
-
-            /// <summary>
-            ///     The DirectX sprite
-            /// </summary>
-            private readonly SharpDX.Direct3D9.Sprite _sprite = new SharpDX.Direct3D9.Sprite(Device);
-
-            /// <summary>
-            ///     The color of the sprite.
-            /// </summary>
-            private ColorBGRA _color = SharpDX.Color.White;
-
-            /// <summary>
-            ///     The crop of the sprite.
-            /// </summary>
-            private SharpDX.Rectangle? _crop;
-
-            /// <summary>
-            ///     <c>true</c> if the sprite is hidden.
-            /// </summary>
-            private bool _hide;
-
-            /// <summary>
-            ///     The original texture
-            /// </summary>
-            private Texture _originalTexture;
-
-            /// <summary>
-            ///     The scale
-            /// </summary>
-            private Vector2 _scale = new Vector2(1, 1);
-
-            /// <summary>
-            ///     The texture
-            /// </summary>
-            private Texture _texture;
-
-            #endregion
-
             #region Constructors and Destructors
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Sprite" /> class.
             /// </summary>
-            /// <param name="bitmap">The bitmap.</param>
-            /// <param name="position">The position.</param>
+            /// <param name="bitmap">
+            ///     The bitmap.
+            /// </param>
+            /// <param name="position">
+            ///     The position.
+            /// </param>
             public Sprite(Bitmap bitmap, Vector2 position)
                 : this()
             {
@@ -1393,47 +1227,58 @@
             /// <summary>
             ///     Initializes a new instance of the <see cref="Sprite" /> class.
             /// </summary>
-            /// <param name="texture">The texture.</param>
-            /// <param name="position">The position.</param>
+            /// <param name="texture">
+            ///     The texture.
+            /// </param>
+            /// <param name="position">
+            ///     The position.
+            /// </param>
             public Sprite(BaseTexture texture, Vector2 position)
-                : this()
+                : this((Bitmap)Image.FromStream(BaseTexture.ToStream(texture, ImageFileFormat.Bmp)), position)
             {
-                this.UpdateTextureBitmap(
-                    (Bitmap)Image.FromStream(BaseTexture.ToStream(texture, ImageFileFormat.Bmp)),
-                    position);
             }
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Sprite" /> class.
             /// </summary>
-            /// <param name="stream">The stream.</param>
-            /// <param name="position">The position.</param>
+            /// <param name="stream">
+            ///     The stream.
+            /// </param>
+            /// <param name="position">
+            ///     The position.
+            /// </param>
             public Sprite(Stream stream, Vector2 position)
-                : this()
+                : this(new Bitmap(stream), position)
             {
-                this.UpdateTextureBitmap(new Bitmap(stream), position);
             }
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Sprite" /> class.
             /// </summary>
-            /// <param name="bytesArray">The bytes array.</param>
-            /// <param name="position">The position.</param>
+            /// <param name="bytesArray">
+            ///     The bytes array.
+            /// </param>
+            /// <param name="position">
+            ///     The position.
+            /// </param>
             public Sprite(byte[] bytesArray, Vector2 position)
-                : this()
+                : this((Bitmap)Image.FromStream(new MemoryStream(bytesArray)), position)
             {
-                this.UpdateTextureBitmap((Bitmap)Image.FromStream(new MemoryStream(bytesArray)), position);
             }
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Sprite" /> class.
             /// </summary>
-            /// <param name="fileLocation">The file location.</param>
-            /// <param name="position">The position.</param>
+            /// <param name="fileLocation">
+            ///     The file location.
+            /// </param>
+            /// <param name="position">
+            ///     The position.
+            /// </param>
             public Sprite(string fileLocation, Vector2 position)
                 : this()
             {
-                if (!File.Exists((fileLocation)))
+                if (!File.Exists(fileLocation))
                 {
                     return;
                 }
@@ -1441,16 +1286,10 @@
                 this.UpdateTextureBitmap(new Bitmap(fileLocation), position);
             }
 
-            /// <summary>
-            ///     Prevents a default instance of the <see cref="Sprite" /> class from being created.
-            /// </summary>
             private Sprite()
             {
-                Game.OnUpdate += this.Game_OnUpdate;
+                Game.OnUpdate += this.OnUpdate;
                 this.SubscribeToResetEvents();
-
-                Drawing.OnPreReset += new DrawingPreReset(OnPreReset);
-                Drawing.OnPostReset += new DrawingPostReset(OnPostReset);
             }
 
             #endregion
@@ -1458,15 +1297,19 @@
             #region Delegates
 
             /// <summary>
-            ///     Delegate for when the sprite is reset.
+            ///     The reset delegate.
             /// </summary>
-            /// <param name="sprite">The sprite.</param>
+            /// <param name="sprite">
+            ///     The sprite.
+            /// </param>
             public delegate void OnResetting(Sprite sprite);
 
             /// <summary>
-            ///     Delegate that gets the position of the sprite.
+            ///     The position delegate.
             /// </summary>
-            /// <returns>Vector2.</returns>
+            /// <returns>
+            ///     The <see cref="Vector2" />.
+            /// </returns>
             public delegate Vector2 PositionDelegate();
 
             #endregion
@@ -1474,7 +1317,7 @@
             #region Public Events
 
             /// <summary>
-            ///     Occurs when the sprite is reset.
+            ///     The reset event.
             /// </summary>
             public event OnResetting OnReset;
 
@@ -1485,205 +1328,153 @@
             /// <summary>
             ///     Gets or sets the bitmap.
             /// </summary>
-            /// <value>The bitmap.</value>
             public Bitmap Bitmap { get; set; }
 
             /// <summary>
             ///     Gets or sets the color.
             /// </summary>
-            /// <value>The color.</value>
-            public ColorBGRA Color
-            {
-                set
-                {
-                    this._color = value;
-                }
-                get
-                {
-                    return this._color;
-                }
-            }
+            public ColorBGRA Color { get; set; } = SharpDX.Color.White;
 
             /// <summary>
             ///     Gets the height.
             /// </summary>
-            /// <value>The height.</value>
-            public int Height
-            {
-                get
-                {
-                    return (int)(this.Bitmap.Height * this._scale.Y);
-                }
-            }
+            public int Height => (int)(this.Bitmap.Height * this.Scale.Y);
+
+            /// <summary>
+            ///     Gets or sets a value indicating whether the sprite is visible.
+            /// </summary>
+            public bool IsVisible { get; set; } = true;
 
             /// <summary>
             ///     Gets or sets the position.
             /// </summary>
-            /// <value>The position.</value>
             public Vector2 Position
             {
+                get
+                {
+                    return new Vector2(this.X, this.Y);
+                }
+
                 set
                 {
                     this.X = (int)value.X;
                     this.Y = (int)value.Y;
                 }
-
-                get
-                {
-                    return new Vector2(this.X, this.Y);
-                }
             }
 
             /// <summary>
-            ///     Gets or sets the delegate that gets the position.
+            ///     Gets or sets the position update.
             /// </summary>
-            /// <value>The position update.</value>
             public PositionDelegate PositionUpdate { get; set; }
 
             /// <summary>
             ///     Gets or sets the rotation.
             /// </summary>
-            /// <value>The rotation.</value>
-            public float Rotation { set; get; }
+            public float Rotation { get; set; }
 
             /// <summary>
             ///     Gets or sets the scale.
             /// </summary>
-            /// <value>The scale.</value>
-            public Vector2 Scale
-            {
-                set
-                {
-                    this._scale = value;
-                }
-                get
-                {
-                    return this._scale;
-                }
-            }
+            public Vector2 Scale { get; set; } = Vector2.One;
 
             /// <summary>
             ///     Gets the size.
             /// </summary>
-            /// <value>The size.</value>
-            public Vector2 Size
-            {
-                get
-                {
-                    return new Vector2(this.Bitmap.Width, this.Bitmap.Height);
-                }
-            }
+            public Vector2 Size => new Vector2(this.Bitmap.Width, this.Bitmap.Height);
+
+            /// <summary>
+            ///     Gets or sets the sprite crop.
+            /// </summary>
+            public SharpDX.Rectangle? SpriteCrop { get; set; }
+
+            /// <summary>
+            ///     Gets or sets the texture.
+            /// </summary>
+            public Texture Texture { get; set; }
 
             /// <summary>
             ///     Gets the width.
             /// </summary>
-            /// <value>The width.</value>
-            public int Width
-            {
-                get
-                {
-                    return (int)(this.Bitmap.Width * this._scale.X);
-                }
-            }
+            public int Width => (int)(this.Bitmap.Width * this.Scale.X);
 
             /// <summary>
-            ///     Gets or sets the x.
+            ///     Gets or sets the X-Axis of the position.
             /// </summary>
-            /// <value>The x.</value>
             public int X { get; set; }
 
             /// <summary>
-            ///     Gets or sets the y.
+            ///     Gets or sets the Y-Axis of the position.
             /// </summary>
-            /// <value>The y.</value>
             public int Y { get; set; }
+
+            #endregion
+
+            #region Properties
+
+            private SharpDX.Direct3D9.Sprite DeviceSprite { get; } = new SharpDX.Direct3D9.Sprite(Device);
+
+            private Texture OriginalTexture { get; set; }
 
             #endregion
 
             #region Public Methods and Operators
 
             /// <summary>
-            ///     Complements this instance.
+            ///     Complements the sprite.
             /// </summary>
-            public void Complement()
-            {
-                this.SetSaturation(-1.0f);
-            }
+            public void Complement() => this.SetSaturation(-1.0f);
 
             /// <summary>
             ///     Crops the sprite.
             /// </summary>
-            /// <param name="x">The x.</param>
-            /// <param name="y">The y.</param>
-            /// <param name="w">The width.</param>
-            /// <param name="h">The height.</param>
-            /// <param name="scale">if set to <c>true</c>, crops with the scale.</param>
+            /// <param name="x">
+            ///     The X-axis of the position.
+            /// </param>
+            /// <param name="y">
+            ///     The Y-axis of the position.
+            /// </param>
+            /// <param name="w">
+            ///     The width.
+            /// </param>
+            /// <param name="h">
+            ///     The height.
+            /// </param>
+            /// <param name="scale">
+            ///     The scale.
+            /// </param>
             public void Crop(int x, int y, int w, int h, bool scale = false)
-            {
-                this._crop = new SharpDX.Rectangle(x, y, w, h);
-
-                if (scale)
-                {
-                    this._crop = new SharpDX.Rectangle(
-                        (int)(this._scale.X * x),
-                        (int)(this._scale.Y * y),
-                        (int)(this._scale.X * w),
-                        (int)(this._scale.Y * h));
-                }
-            }
+                => this.Crop(new SharpDX.Rectangle(x, y, w, h), scale);
 
             /// <summary>
             ///     Crops the sprite.
             /// </summary>
-            /// <param name="rect">The rectangle.</param>
-            /// <param name="scale">if set to <c>true</c>, crops with the scale.</param>
+            /// <param name="rect">
+            ///     The rectangle.
+            /// </param>
+            /// <param name="scale">
+            ///     The scale.
+            /// </param>
             public void Crop(SharpDX.Rectangle rect, bool scale = false)
             {
-                this._crop = rect;
+                this.SpriteCrop = rect;
 
                 if (scale)
                 {
-                    this._crop = new SharpDX.Rectangle(
-                        (int)(this._scale.X * rect.X),
-                        (int)(this._scale.Y * rect.Y),
-                        (int)(this._scale.X * rect.Width),
-                        (int)(this._scale.Y * rect.Height));
+                    this.SpriteCrop = new SharpDX.Rectangle(
+                                          (int)(this.Scale.X * rect.X),
+                                          (int)(this.Scale.Y * rect.Y),
+                                          (int)(this.Scale.X * rect.Width),
+                                          (int)(this.Scale.Y * rect.Height));
                 }
             }
 
             /// <summary>
-            ///     Disposes this instance.
+            ///     Fades the sprite.
             /// </summary>
-            public override void Dispose()
-            {
-                this.OnPreReset();
-                Game.OnUpdate -= this.Game_OnUpdate;
-                if (!this._sprite.IsDisposed)
-                {
-                    this._sprite.Dispose();
-                }
-
-                if (!this._texture.IsDisposed)
-                {
-                    this._texture.Dispose();
-                }
-
-                if (!this._originalTexture.IsDisposed)
-                {
-                    this._originalTexture.Dispose();
-                }
-            }
+            public void Fade() => this.SetSaturation(.5f);
 
             /// <summary>
-            ///     Fades this instance. (Saturation is 1/2)
-            /// </summary>
-            public void Fade()
-            {
-                this.SetSaturation(0.5f);
-            }
-
-            /// <summary>
-            ///     Makes the sprite black and white.
+            ///     Grey scales the sprite.
             /// </summary>
             public void GrayScale()
             {
@@ -1691,33 +1482,34 @@
             }
 
             /// <summary>
-            ///     Hides this instance.
+            ///     Hides the sprite.
             /// </summary>
-            public void Hide()
-            {
-                this._hide = true;
-            }
+            public void Hide() => this.IsVisible = false;
 
-            /// <summary>
-            ///     Called when the scene has ended.
-            /// </summary>
+            /// <inheritdoc />
             public override void OnEndScene()
             {
+                if (this.DeviceSprite.IsDisposed || this.Texture.IsDisposed || this.Position.IsZero || !this.IsVisible)
+                {
+                    return;
+                }
+
                 try
                 {
-                    if (this._sprite.IsDisposed || this._texture.IsDisposed || !this.Position.IsValid() || this._hide)
-                    {
-                        return;
-                    }
+                    this.DeviceSprite.Begin();
 
-                    this._sprite.Begin();
-                    var matrix = this._sprite.Transform;
-                    var nMatrix = (Matrix.Scaling(this.Scale.X, this.Scale.Y, 0)) * Matrix.RotationZ(this.Rotation)
+                    var matrix = this.DeviceSprite.Transform;
+                    var nMatrix = Matrix.Scaling(this.Scale.X, this.Scale.Y, 0) * Matrix.RotationZ(this.Rotation)
                                   * Matrix.Translation(this.Position.X, this.Position.Y, 0);
-                    this._sprite.Transform = nMatrix;
-                    this._sprite.Draw(this._texture, this._color, this._crop);
-                    this._sprite.Transform = matrix;
-                    this._sprite.End();
+                    var rotation = Math.Abs(this.Rotation) > float.Epsilon
+                                       ? new Vector3(this.Width / 2f, this.Height / 2f, 0)
+                                       : (Vector3?)null;
+
+                    this.DeviceSprite.Transform = nMatrix;
+                    this.DeviceSprite.Draw(this.Texture, this.Color, this.SpriteCrop, rotation);
+                    this.DeviceSprite.Transform = matrix;
+
+                    this.DeviceSprite.End();
                 }
                 catch (Exception e)
                 {
@@ -1726,73 +1518,79 @@
                 }
             }
 
-            /// <summary>
-            ///     Called after the DirectX device is reset.
-            /// </summary>
-            public void OnPostReset(EventArgs args)
+            /// <inheritdoc />
+            public override void OnPostReset()
             {
-                this._sprite.OnResetDevice();
-            }
-
-            /// <summary>
-            ///     Called before the DirectX device is reset..
-            /// </summary>
-            public void OnPreReset(EventArgs args)
-            {
-                this._sprite.OnLostDevice();
-            }
-
-            /// <summary>
-            ///     Resets this instance.
-            /// </summary>
-            public void Reset()
-            {
-                this.UpdateTextureBitmap((Bitmap)Image.FromStream(BaseTexture.ToStream(this._originalTexture, ImageFileFormat.Bmp)));
-
-                if (this.OnReset != null)
+                try
                 {
-                    this.OnReset(this);
+                    this.DeviceSprite?.OnResetDevice();
+                }
+                catch (Exception)
+                {
+                    // ignored
+                }
+            }
+
+            /// <inheritdoc />
+            public override void OnPreReset()
+            {
+                try
+                {
+                    this.DeviceSprite?.OnLostDevice();
+                }
+                catch (Exception)
+                {
+                    // ignored
                 }
             }
 
             /// <summary>
-            ///     Sets the saturation.
+            ///     Resets the sprite.
             /// </summary>
-            /// <param name="saturiation">The saturiation.</param>
-            public void SetSaturation(float saturiation)
+            public void Reset()
             {
-                this.UpdateTextureBitmap(SaturateBitmap(this.Bitmap, saturiation));
+                this.UpdateTextureBitmap(
+                    (Bitmap)Image.FromStream(BaseTexture.ToStream(this.OriginalTexture, ImageFileFormat.Bmp)));
+
+                this.OnReset?.Invoke(this);
             }
 
             /// <summary>
-            ///     Shows this instance.
+            ///     Sets the sprite saturation.
             /// </summary>
-            public void Show()
-            {
-                this._hide = false;
-            }
+            /// <param name="saturation">
+            ///     The saturation level.
+            /// </param>
+            public void SetSaturation(float saturation)
+                => this.UpdateTextureBitmap(SaturateBitmap(this.Bitmap, saturation));
 
             /// <summary>
-            ///     Updates the texture bitmap.
+            ///     Shows the sprite.
             /// </summary>
-            /// <param name="newBitmap">The new bitmap.</param>
-            /// <param name="position">The position.</param>
-            public void UpdateTextureBitmap(Bitmap newBitmap, Vector2 position = new Vector2())
+            public void Show() => this.IsVisible = true;
+
+            /// <summary>
+            ///     Updates the texture.
+            /// </summary>
+            /// <param name="bitmap">
+            ///     The bitmap.
+            /// </param>
+            /// <param name="position">
+            ///     The position.
+            /// </param>
+            public void UpdateTextureBitmap(Bitmap bitmap, Vector2 position = default(Vector2))
             {
-                if (position.IsValid())
+                if (!position.IsZero)
                 {
                     this.Position = position;
                 }
 
-                if (this.Bitmap != null)
-                {
-                    this.Bitmap.Dispose();
-                }
-                this.Bitmap = newBitmap;
+                this.Bitmap?.Dispose();
+                this.Bitmap = bitmap;
 
-                this._texture = Texture.FromMemory(
+                this.Texture = Texture.FromMemory(
                     Device,
-                    (byte[])new ImageConverter().ConvertTo(newBitmap, typeof(byte[])),
+                    (byte[])new ImageConverter().ConvertTo(bitmap, typeof(byte[])),
                     this.Width,
                     this.Height,
                     0,
@@ -1802,10 +1600,9 @@
                     Filter.Default,
                     Filter.Default,
                     0);
-
-                if (this._originalTexture == null)
+                if (this.OriginalTexture == null)
                 {
-                    this._originalTexture = this._texture;
+                    this.OriginalTexture = this.Texture;
                 }
             }
 
@@ -1813,27 +1610,44 @@
 
             #region Methods
 
-            /// <summary>
-            ///     Saturates the bitmap.
-            /// </summary>
-            /// <param name="original">The original image.</param>
-            /// <param name="saturation">The saturation.</param>
-            /// <returns>Bitmap.</returns>
+            /// <inheritdoc />
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+
+                if (!this.DeviceSprite.IsDisposed)
+                {
+                    this.DeviceSprite.Dispose();
+                }
+
+                if (!this.Texture.IsDisposed)
+                {
+                    this.Texture.Dispose();
+                }
+
+                if (!this.OriginalTexture.IsDisposed)
+                {
+                    this.OriginalTexture.Dispose();
+                }
+
+                this.Bitmap = null;
+            }
+
             private static Bitmap SaturateBitmap(Image original, float saturation)
             {
-                const float rWeight = 0.3086f;
-                const float gWeight = 0.6094f;
-                const float bWeight = 0.0820f;
+                const float RWeight = 0.3086f;
+                const float GWeight = 0.6094f;
+                const float BWeight = 0.0820f;
 
-                var a = (1.0f - saturation) * rWeight + saturation;
-                var b = (1.0f - saturation) * rWeight;
-                var c = (1.0f - saturation) * rWeight;
-                var d = (1.0f - saturation) * gWeight;
-                var e = (1.0f - saturation) * gWeight + saturation;
-                var f = (1.0f - saturation) * gWeight;
-                var g = (1.0f - saturation) * bWeight;
-                var h = (1.0f - saturation) * bWeight;
-                var i = (1.0f - saturation) * bWeight + saturation;
+                var a = ((1.0f - saturation) * RWeight) + saturation;
+                var b = (1.0f - saturation) * RWeight;
+                var c = (1.0f - saturation) * RWeight;
+                var d = (1.0f - saturation) * GWeight;
+                var e = ((1.0f - saturation) * GWeight) + saturation;
+                var f = (1.0f - saturation) * GWeight;
+                var g = (1.0f - saturation) * BWeight;
+                var h = (1.0f - saturation) * BWeight;
+                var i = ((1.0f - saturation) * BWeight) + saturation;
 
                 var newBitmap = new Bitmap(original.Width, original.Height);
                 var gr = Graphics.FromImage(newBitmap);
@@ -1844,14 +1658,19 @@
                         new[] { a, b, c, 0, 0 }, new[] { d, e, f, 0, 0 }, new[] { g, h, i, 0, 0 },
                         new float[] { 0, 0, 0, 1, 0 }, new float[] { 0, 0, 0, 0, 1 }
                     };
+
                 // Create ColorMatrix
                 var clrMatrix = new ColorMatrix(ptsArray);
+
                 // Create ImageAttributes
                 var imgAttribs = new ImageAttributes();
+
                 // Set color matrix
                 imgAttribs.SetColorMatrix(clrMatrix, ColorMatrixFlag.Default, ColorAdjustType.Default);
+
                 // Draw Image with no effects
                 gr.DrawImage(original, 0, 0, original.Width, original.Height);
+
                 // Draw Image with image attributes
                 gr.DrawImage(
                     original,
@@ -1867,11 +1686,7 @@
                 return newBitmap;
             }
 
-            /// <summary>
-            ///     Fired when the game is updated.
-            /// </summary>
-            /// <param name="args">The <see cref="EventArgs" /> instance containing the event data.</param>
-            private void Game_OnUpdate(EventArgs args)
+            private void OnUpdate(EventArgs args)
             {
                 if (this.PositionUpdate != null)
                 {
@@ -1891,65 +1706,15 @@
         {
             #region Fields
 
-            /// <summary>
-            ///     <c>true</c> if the text should be centered at the position.
-            /// </summary>
-            public bool Centered = false;
+            private string content;
 
-            /// <summary>
-            ///     The offset
-            /// </summary>
-            public Vector2 Offset;
+            private int x;
 
-            /// <summary>
-            ///     <c>true</c> if the text should have an outline.
-            /// </summary>
-            public bool OutLined = false;
+            private int xCalcualted;
 
-            /// <summary>
-            ///     The delegate that updates the position of the text.
-            /// </summary>
-            public PositionDelegate PositionUpdate;
+            private int y;
 
-            /// <summary>
-            ///     The delegate that updates the text.
-            /// </summary>
-            public TextDelegate TextUpdate;
-
-            /// <summary>
-            ///     The unit
-            /// </summary>
-            public Obj_AI_Base Unit;
-
-            /// <summary>
-            ///     The text
-            /// </summary>
-            private string _text;
-
-            /// <summary>
-            ///     The DirectX text font
-            /// </summary>
-            private Font _textFont;
-
-            /// <summary>
-            ///     The x
-            /// </summary>
-            private int _x;
-
-            /// <summary>
-            ///     The calculated x
-            /// </summary>
-            private int _xCalculated;
-
-            /// <summary>
-            ///     The y
-            /// </summary>
-            private int _y;
-
-            /// <summary>
-            ///     The calculated y
-            /// </summary>
-            private int _yCalculated;
+            private int yCalculated;
 
             #endregion
 
@@ -1958,43 +1723,77 @@
             /// <summary>
             ///     Initializes a new instance of the <see cref="Text" /> class.
             /// </summary>
-            /// <param name="text">The text.</param>
-            /// <param name="x">The x.</param>
-            /// <param name="y">The y.</param>
-            /// <param name="size">The size.</param>
-            /// <param name="color">The color.</param>
-            /// <param name="fontName">Name of the font.</param>
+            /// <param name="text">
+            ///     The text.
+            /// </param>
+            /// <param name="x">
+            ///     The X-axis.
+            /// </param>
+            /// <param name="y">
+            ///     The Y-axis.
+            /// </param>
+            /// <param name="size">
+            ///     The size.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="fontName">
+            ///     The font name.
+            /// </param>
             public Text(string text, int x, int y, int size, ColorBGRA color, string fontName = "Calibri")
                 : this(text, fontName, size, color)
             {
-                this._x = x;
-                this._y = y;
+                this.x = x;
+                this.y = y;
             }
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Text" /> class.
             /// </summary>
-            /// <param name="text">The text.</param>
-            /// <param name="position">The position.</param>
-            /// <param name="size">The size.</param>
-            /// <param name="color">The color.</param>
-            /// <param name="fontName">Name of the font.</param>
+            /// <param name="text">
+            ///     The text.
+            /// </param>
+            /// <param name="position">
+            ///     The position.
+            /// </param>
+            /// <param name="size">
+            ///     The size.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="fontName">
+            ///     The font name.
+            /// </param>
             public Text(string text, Vector2 position, int size, ColorBGRA color, string fontName = "Calibri")
                 : this(text, fontName, size, color)
             {
-                this._x = (int)position.X;
-                this._y = (int)position.Y;
+                this.x = (int)position.X;
+                this.y = (int)position.Y;
             }
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Text" /> class.
             /// </summary>
-            /// <param name="text">The text.</param>
-            /// <param name="unit">The unit.</param>
-            /// <param name="offset">The offset.</param>
-            /// <param name="size">The size.</param>
-            /// <param name="color">The color.</param>
-            /// <param name="fontName">Name of the font.</param>
+            /// <param name="text">
+            ///     The text.
+            /// </param>
+            /// <param name="unit">
+            ///     The unit.
+            /// </param>
+            /// <param name="offset">
+            ///     The offset.
+            /// </param>
+            /// <param name="size">
+            ///     The size.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="fontName">
+            ///     The font name.
+            /// </param>
             public Text(
                 string text,
                 Obj_AI_Base unit,
@@ -2008,63 +1807,80 @@
                 this.Offset = offset;
 
                 var pos = unit.HPBarPosition + offset;
-
-                this._x = (int)pos.X;
-                this._y = (int)pos.Y;
+                this.x = (int)pos.X;
+                this.y = (int)pos.Y;
             }
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Text" /> class.
             /// </summary>
-            /// <param name="x">The x.</param>
-            /// <param name="y">The y.</param>
-            /// <param name="text">The text.</param>
-            /// <param name="size">The size.</param>
-            /// <param name="color">The color.</param>
-            /// <param name="fontName">Name of the font.</param>
+            /// <param name="x">
+            ///     The X-axis.
+            /// </param>
+            /// <param name="y">
+            ///     The Y-axis.
+            /// </param>
+            /// <param name="text">
+            ///     The text.
+            /// </param>
+            /// <param name="size">
+            ///     The size.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="fontName">
+            ///     The font name.
+            /// </param>
             public Text(int x, int y, string text, int size, ColorBGRA color, string fontName = "Calibri")
                 : this(text, fontName, size, color)
             {
-                this._x = x;
-                this._y = y;
+                this.x = x;
+                this.y = y;
             }
 
             /// <summary>
             ///     Initializes a new instance of the <see cref="Text" /> class.
             /// </summary>
-            /// <param name="position">The position.</param>
-            /// <param name="text">The text.</param>
-            /// <param name="size">The size.</param>
-            /// <param name="color">The color.</param>
-            /// <param name="fontName">Name of the font.</param>
+            /// <param name="position">
+            ///     The position.
+            /// </param>
+            /// <param name="text">
+            ///     The text.
+            /// </param>
+            /// <param name="size">
+            ///     The size.
+            /// </param>
+            /// <param name="color">
+            ///     The color.
+            /// </param>
+            /// <param name="fontName">
+            ///     The font name.
+            /// </param>
             public Text(Vector2 position, string text, int size, ColorBGRA color, string fontName = "Calibri")
                 : this(text, fontName, size, color)
             {
-                this._x = (int)position.X;
-                this._y = (int)position.Y;
+                this.x = (int)position.X;
+                this.y = (int)position.Y;
             }
 
-            /// <summary>
-            ///     Initializes a new instance of the <see cref="Text" /> class.
-            /// </summary>
-            /// <param name="text">The text.</param>
-            /// <param name="fontName">Name of the font.</param>
-            /// <param name="size">The size.</param>
-            /// <param name="color">The color.</param>
             private Text(string text, string fontName, int size, ColorBGRA color)
             {
-                this._textFont = new Font(
-                    Device,
-                    new FontDescription
-                    {
-                        FaceName = fontName,
-                        Height = size,
-                        OutputPrecision = FontPrecision.Default,
-                        Quality = FontQuality.Default
-                    });
+                const FontPrecision OpDefault = FontPrecision.Default;
+                const FontQuality QDefault = FontQuality.Default;
+
+                var fontDesc = new FontDescription
+                {
+                    FaceName = fontName,
+                    Height = size,
+                    OutputPrecision = OpDefault,
+                    Quality = QDefault
+                };
+                this.Font = new Font(Device, fontDesc);
                 this.Color = color;
-                this.text = text;
-                Game.OnUpdate += this.Game_OnUpdate;
+                this.Content = text;
+
+                Game.OnUpdate += this.OnUpdate;
                 this.SubscribeToResetEvents();
             }
 
@@ -2073,15 +1889,19 @@
             #region Delegates
 
             /// <summary>
-            ///     Delegate that gets the position of the text.
+            ///     The position delegate.
             /// </summary>
-            /// <returns>Vector2.</returns>
+            /// <returns>
+            ///     The <see cref="Vector2" />.
+            /// </returns>
             public delegate Vector2 PositionDelegate();
 
             /// <summary>
-            ///     Delegate that gets the text.
+            ///     The text delegate.
             /// </summary>
-            /// <returns>System.String.</returns>
+            /// <returns>
+            ///     The <see cref="string" />.
+            /// </returns>
             public delegate string TextDelegate();
 
             #endregion
@@ -2089,102 +1909,140 @@
             #region Public Properties
 
             /// <summary>
+            ///     Gets or sets a value indicating whether the text is centered.
+            /// </summary>
+            public bool Centered { get; set; }
+
+            /// <summary>
             ///     Gets or sets the color.
             /// </summary>
-            /// <value>The color.</value>
             public ColorBGRA Color { get; set; }
+
+            /// <summary>
+            ///     Gets or sets the content.
+            /// </summary>
+            public string Content
+            {
+                get
+                {
+                    return this.content;
+                }
+
+                set
+                {
+                    if (value != this.content && (!this.Font?.IsDisposed ?? false) && !string.IsNullOrEmpty(value))
+                    {
+                        var size = this.Font?.MeasureText(null, value, 0) ?? default(SharpDX.Rectangle);
+                        this.Width = size.Width;
+                        this.Height = size.Height;
+                        this.Font?.PreloadText(value);
+                    }
+
+                    this.content = value;
+                }
+            }
 
             /// <summary>
             ///     Gets the height.
             /// </summary>
-            /// <value>The height.</value>
             public int Height { get; private set; }
+
+            /// <summary>
+            ///     Gets or sets the offset.
+            /// </summary>
+            public Vector2 Offset { get; set; }
+
+            /// <summary>
+            ///     Gets or sets a value indicating whether the text is outlined.
+            /// </summary>
+            public bool OutLined { get; set; }
+
+            /// <summary>
+            ///     Gets or sets the position update.
+            /// </summary>
+            public PositionDelegate PositionUpdate { get; set; }
 
             /// <summary>
             ///     Gets or sets the text.
             /// </summary>
-            /// <value>The text.</value>
+            [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Old API Compability.")]
+            [Obsolete("Use Content property.")]
+#pragma warning disable SA1300 // Element must begin with upper-case letter
             public string text
+#pragma warning restore SA1300 // Element must begin with upper-case letter
             {
                 get
                 {
-                    return this._text;
+                    return this.Content;
                 }
+
                 set
                 {
-                    if (value != this._text && this._textFont != null && !this._textFont.IsDisposed
-                        && !string.IsNullOrEmpty(value))
-                    {
-                        var size = this._textFont.MeasureText(null, value, 0);
-                        this.Width = size.Width;
-                        this.Height = size.Height;
-                        this._textFont.PreloadText(value);
-                    }
-                    this._text = value;
+                    this.Content = value;
                 }
             }
 
             /// <summary>
             ///     Gets or sets the text font description.
             /// </summary>
-            /// <value>The text font description.</value>
             public FontDescription TextFontDescription
             {
                 get
                 {
-                    return this._textFont.Description;
+                    return this.Font.Description;
                 }
 
                 set
                 {
-                    this._textFont.Dispose();
-                    this._textFont = new Font(Device, value);
+                    this.Font.Dispose();
+                    this.Font = new Font(Device, value);
                 }
             }
+
+            /// <summary>
+            ///     Gets or sets the text update.
+            /// </summary>
+            public TextDelegate TextUpdate { get; set; }
+
+            /// <summary>
+            ///     Gets or sets the unit.
+            /// </summary>
+            public Obj_AI_Base Unit { get; set; }
 
             /// <summary>
             ///     Gets the width.
             /// </summary>
-            /// <value>The width.</value>
             public int Width { get; private set; }
 
             /// <summary>
-            ///     Gets or sets the x.
+            ///     Gets or sets the X-Axis of the postiion.
             /// </summary>
-            /// <value>The x.</value>
             public int X
             {
                 get
                 {
-                    if (this.PositionUpdate != null)
-                    {
-                        return this._xCalculated;
-                    }
-                    return this._x + this.XOffset;
+                    return this.PositionUpdate != null ? this.xCalcualted : this.x + this.XOffset;
                 }
+
                 set
                 {
-                    this._x = value;
+                    this.x = value;
                 }
             }
 
             /// <summary>
-            ///     Gets or sets the y.
+            ///     Gets or sets the Y-Axis of the position.
             /// </summary>
-            /// <value>The y.</value>
             public int Y
             {
                 get
                 {
-                    if (this.PositionUpdate != null)
-                    {
-                        return this._yCalculated;
-                    }
-                    return this._y + this.YOffset;
+                    return this.PositionUpdate != null ? this.yCalculated : this.y + this.YOffset;
                 }
+
                 set
                 {
-                    this._y = value;
+                    this.y = value;
                 }
             }
 
@@ -2192,55 +2050,22 @@
 
             #region Properties
 
-            /// <summary>
-            ///     Gets the x offset.
-            /// </summary>
-            /// <value>The x offset.</value>
-            private int XOffset
-            {
-                get
-                {
-                    return this.Centered ? -this.Width / 2 : 0;
-                }
-            }
+            private Font Font { get; set; }
 
-            /// <summary>
-            ///     Gets the y offset.
-            /// </summary>
-            /// <value>The y offset.</value>
-            private int YOffset
-            {
-                get
-                {
-                    return this.Centered ? -this.Height / 2 : 0;
-                }
-            }
+            private int XOffset => this.Centered ? -this.Width / 2 : 0;
+
+            private int YOffset => this.Centered ? -this.Height / 2 : 0;
 
             #endregion
 
             #region Public Methods and Operators
 
-            /// <summary>
-            ///     Disposes this instance.
-            /// </summary>
-            public override void Dispose()
-            {
-                Game.OnUpdate -= this.Game_OnUpdate;
-                this.OnPreReset();
-                if (!this._textFont.IsDisposed)
-                {
-                    this._textFont.Dispose();
-                }
-            }
-
-            /// <summary>
-            ///     Called when the scene has ended.
-            /// </summary>
+            /// <inheritdoc />
             public override void OnEndScene()
             {
                 try
                 {
-                    if (this._textFont.IsDisposed || this.text == "")
+                    if ((this.Font == null || this.Font.IsDisposed) || string.IsNullOrEmpty(this.content))
                     {
                         return;
                     }
@@ -2254,15 +2079,17 @@
 
                     var xP = this.X;
                     var yP = this.Y;
+
                     if (this.OutLined)
                     {
                         var outlineColor = new ColorBGRA(0, 0, 0, 255);
-                        this._textFont.DrawText(null, this.text, xP - 1, yP - 1, outlineColor);
-                        this._textFont.DrawText(null, this.text, xP + 1, yP + 1, outlineColor);
-                        this._textFont.DrawText(null, this.text, xP - 1, yP, outlineColor);
-                        this._textFont.DrawText(null, this.text, xP + 1, yP, outlineColor);
+                        this.Font?.DrawText(null, this.Content, xP - 1, yP - 1, outlineColor);
+                        this.Font?.DrawText(null, this.Content, xP + 1, yP + 1, outlineColor);
+                        this.Font?.DrawText(null, this.Content, xP - 1, yP, outlineColor);
+                        this.Font?.DrawText(null, this.Content, xP + 1, yP, outlineColor);
                     }
-                    this._textFont.DrawText(null, this.text, xP, yP, this.Color);
+
+                    this.Font?.DrawText(null, this.Content, xP, yP, this.Color);
                 }
                 catch (Exception e)
                 {
@@ -2270,44 +2097,49 @@
                 }
             }
 
-            /// <summary>
-            ///     Called after the DirectX device has been reset.
-            /// </summary>
-            public void OnPostReset(EventArgs args)
+            /// <inheritdoc />
+            public override void OnPostReset()
             {
-                this._textFont.OnResetDevice();
+                this.Font.OnResetDevice();
             }
 
-            /// <summary>
-            ///     Called before the DirectX device is reset.
-            /// </summary>
-            public void OnPreReset(EventArgs args)
+            /// <inheritdoc />
+            public override void OnPreReset()
             {
-                this._textFont.OnLostDevice();
+                this.Font.OnLostDevice();
             }
 
             #endregion
 
             #region Methods
 
-            /// <summary>
-            ///     Game_s the on update.
-            /// </summary>
-            /// <param name="args">The <see cref="EventArgs" /> instance containing the event data.</param>
-            private void Game_OnUpdate(EventArgs args)
+            /// <inheritdoc />
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+
+                if (disposing)
+                {
+                    this.Font?.Dispose();
+                }
+
+                Game.OnUpdate -= this.OnUpdate;
+            }
+
+            private void OnUpdate(EventArgs args)
             {
                 if (this.Visible)
                 {
                     if (this.TextUpdate != null)
                     {
-                        this.text = this.TextUpdate();
+                        this.Content = this.TextUpdate();
                     }
 
-                    if (this.PositionUpdate != null && !string.IsNullOrEmpty(this.text))
+                    if (this.PositionUpdate != null && !string.IsNullOrEmpty(this.Content))
                     {
                         var pos = this.PositionUpdate();
-                        this._xCalculated = (int)pos.X + this.XOffset;
-                        this._yCalculated = (int)pos.Y + this.YOffset;
+                        this.xCalcualted = (int)pos.X + this.XOffset;
+                        this.yCalculated = (int)pos.Y + this.YOffset;
                     }
                 }
             }
@@ -2324,7 +2156,7 @@
         #region Static Fields
 
         /// <summary>
-        ///     The widths
+        ///     Collection of saved widths for each font.
         /// </summary>
         private static readonly Dictionary<Font, Dictionary<string, Rectangle>> Widths =
             new Dictionary<Font, Dictionary<string, Rectangle>>();
@@ -2336,10 +2168,18 @@
         /// <summary>
         ///     Measures the text.
         /// </summary>
-        /// <param name="font">The font.</param>
-        /// <param name="sprite">The sprite.</param>
-        /// <param name="text">The text.</param>
-        /// <returns>Rectangle.</returns>
+        /// <param name="font">
+        ///     The font.
+        /// </param>
+        /// <param name="sprite">
+        ///     The sprite.
+        /// </param>
+        /// <param name="text">
+        ///     The text.
+        /// </param>
+        /// <returns>
+        ///     The <see cref="Rectangle" />.
+        /// </returns>
         public static Rectangle MeasureText(this Font font, Sprite sprite, string text)
         {
             Dictionary<string, Rectangle> rectangles;
@@ -2354,6 +2194,7 @@
             {
                 return rectangle;
             }
+
             rectangle = font.MeasureText(sprite, text, 0);
             rectangles[text] = rectangle;
             return rectangle;
@@ -2362,13 +2203,16 @@
         /// <summary>
         ///     Measures the text.
         /// </summary>
-        /// <param name="font">The font.</param>
-        /// <param name="text">The text.</param>
-        /// <returns>Rectangle.</returns>
-        public static Rectangle MeasureText(this Font font, string text)
-        {
-            return font.MeasureText(null, text);
-        }
+        /// <param name="font">
+        ///     The font.
+        /// </param>
+        /// <param name="text">
+        ///     The text.
+        /// </param>
+        /// <returns>
+        ///     The <see cref="Rectangle" />.
+        /// </returns>
+        public static Rectangle MeasureText(this Font font, string text) => font.MeasureText(null, text);
 
         #endregion
     }
