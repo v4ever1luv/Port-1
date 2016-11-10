@@ -66,5 +66,4 @@ using System.Security.Permissions;
 [assembly: AssemblyFileVersion("1.0.0.52")]
 [assembly: NeutralResourcesLanguage("en")]
 [assembly: AllowPartiallyTrustedCallers]
-[assembly: SecurityRules(SecurityRuleSet.Level1, SkipVerificationInFullTrust = true)]
-[assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
+[assembly: SecurityRules(SecurityRuleSet.Level1)]

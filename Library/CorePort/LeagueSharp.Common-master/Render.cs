@@ -2117,8 +2117,12 @@
             protected override void Dispose(bool disposing)
             {
                 base.Dispose(disposing);
-
+                /*
                 if (disposing)
+                {
+                    this.Font?.Dispose();
+                }//*/
+                if (this.Font != null && !this.Font.IsDisposed)
                 {
                     this.Font?.Dispose();
                 }

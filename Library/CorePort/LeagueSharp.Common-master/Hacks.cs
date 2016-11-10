@@ -95,6 +95,8 @@ namespace LeagueSharp.Common
             }
         }
 
+        private static MenuItem DisableDrawing { get; set; }
+
         #endregion
 
         #region Public Methods and Operators

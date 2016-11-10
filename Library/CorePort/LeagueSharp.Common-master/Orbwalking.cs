@@ -329,7 +329,7 @@ namespace LeagueSharp.Common
         /// <returns><c>true</c> if this instance can attack; otherwise, <c>false</c>.</returns>
         public static bool CanAttack()
         {
-            /*if (Player.ChampionName == "Graves")
+            if (Player.ChampionName == "Graves")
             {
                 var attackDelay = 1.0740296828d * 1000 * Player.AttackDelay - 716.2381256175d;
                 if (Utils.GameTimeTickCount + Game.Ping / 2 + 25 >= LastAATick + attackDelay && Player.HasBuff("GravesBasicAttackAmmo1"))
@@ -346,11 +346,11 @@ namespace LeagueSharp.Common
                     return false;
                 }
             }
-
+            /*
             if (Player.IsCastingInterruptableSpell())
             {
                 return false;
-            }
+            }//*/
 
             return Utils.GameTimeTickCount + Game.Ping / 2 + 25 >= LastAATick + Player.AttackDelay * 1000;
         }
@@ -815,16 +815,21 @@ namespace LeagueSharp.Common
                         _lastTarget = target;
                     }
                 }
-
+                /*
                 if (sender is Obj_AI_Turret && args.Target is Obj_AI_Base)
                 {
                     LastTargetTurrets[sender.NetworkId] = (Obj_AI_Base)args.Target;
-                }
+                }//*/
             }
             FireOnAttack(sender, _lastTarget);
         }
 
         internal static readonly Dictionary<int, Obj_AI_Base> LastTargetTurrets = new Dictionary<int, Obj_AI_Base>();
+
+        internal static bool HasTurretTargetting(this Obj_AI_Minion minion)
+        {
+            return LastTargetTurrets.Any((KeyValuePair<int, Obj_AI_Base> o) => o.Value.IdEquals(minion));
+        }
 
         /// <summary>
         ///     Fired when the spellbook stops casting a spell.
@@ -898,7 +903,7 @@ namespace LeagueSharp.Common
             /// <summary>
             ///     The lane clear wait time modifier.
             /// </summary>
-            private const float LaneClearWaitTimeMod = 2f;
+            private const float LaneClearWaitTimeMod = 2.1f;
 
             #endregion
 
@@ -1306,7 +1311,7 @@ namespace LeagueSharp.Common
                 /* turrets / inhibitors / nexus */
                 if (mode == OrbwalkingMode.LaneClear
                     && (!_config.Item("FocusMinionsOverTurrets").GetValue<KeyBind>().Active
-                        || !MinionManager.GetMinions(
+                        || !EntityManager.MinionsAndMonsters.GetLaneMinions(EntityManager.UnitTeam.Enemy,
                             EloBuddy.Player.Instance.Position,
                             GetRealAutoAttackRange(EloBuddy.Player.Instance)).Any()))
                 {
@@ -1338,7 +1343,10 @@ namespace LeagueSharp.Common
                 {
                     if (mode != OrbwalkingMode.LaneClear || !this.ShouldWait())
                     {
-                        var target = TargetSelector.GetTarget(-1, TargetSelector.DamageType.Physical);
+                        var target1 = TargetSelector.GetTarget(-1, TargetSelector.DamageType.Physical);
+                        var target = EloBuddy.SDK.TargetSelector.GetTarget(from h in HeroManager.Enemies
+                                                                           where h.IsValidTarget() && InAutoAttackRange(h) && (!EloBuddy.SDK.Orbwalker.IsRanged || EloBuddy.SDK.Prediction.Position.Collision.GetYasuoWallCollision(EloBuddy.Player.Instance.ServerPosition, h.ServerPosition) == Vector3.Zero)
+                                                                           select h, DamageType.Physical);
                         if (target.IsValidTarget() && this.InAutoAttackRange(target))
                         {
                             return target;
@@ -1374,13 +1382,12 @@ namespace LeagueSharp.Common
                         ObjectManager.Get<Obj_AI_Turret>()
                             .MinOrDefault(t => t.IsAlly && !t.IsDead ? this.Player.Distance(t, true) : float.MaxValue);
 
-                    if (ClosestTower != null && this.Player.Distance(ClosestTower, true) < 1500 * 1500)
+                    if (ClosestTower != null && this.Player.Distance(ClosestTower, true) < 688900f)//1500 * 1500) //688900f
                     {
                         Obj_AI_Minion farmUnderTurretMinion = null;
                         Obj_AI_Minion noneKillableMinion = null;
                         // return all the minions underturret in auto attack range
-                        var minions =
-                            MinionManager.GetMinions(this.Player.Position, this.Player.AttackRange + 200)
+                        var minions = EntityManager.MinionsAndMonsters.GetLaneMinions(EntityManager.UnitTeam.Enemy, this.Player.Position, this.Player.AttackRange + 200)
                                 .Where(
                                     minion =>
                                     this.InAutoAttackRange(minion) && ClosestTower.Distance(minion, true) < 900 * 900)
@@ -1671,7 +1678,6 @@ namespace LeagueSharp.Common
                                 (int)(this.Player.AttackDelay * 1000 * LaneClearWaitTimeMod),
                                 this.FarmDelay) <= this.Player.GetAutoAttackDamage(minion));
             }
-
             #endregion
 
             #region Methods
@@ -1742,12 +1748,12 @@ namespace LeagueSharp.Common
                     {
                         return;
                     }
-
+                    /*
                     //Prevent canceling important spells
                     if (this.Player.IsCastingInterruptableSpell(true))
                     {
                         return;
-                    }
+                    }//*/
 
                     var target = this.GetTarget();
                     Orbwalk(target, this._orbwalkingPoint.To2D().IsValid() ? this._orbwalkingPoint : Game.CursorPos,
@@ -1802,7 +1808,6 @@ namespace LeagueSharp.Common
                                           / this.Player.BasicAttack.MissileSpeed)),
                                 this.FarmDelay) <= this.Player.GetAutoAttackDamage(minion));
             }
-
             #endregion
         }
     }

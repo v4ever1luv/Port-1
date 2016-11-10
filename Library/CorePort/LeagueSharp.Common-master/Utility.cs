@@ -9,6 +9,7 @@
 
     using Color = System.Drawing.Color;
     using System.Net;
+    using EloBuddy.SDK;
 
     /// <summary>
     ///     Game functions related utilities.
@@ -700,19 +701,18 @@
         /// <summary>
         ///     Returns if the target is valid (not dead, targetable, visible...).
         /// </summary>
-        public static bool IsValidTarget(this AttackableUnit target, float? range = float.MaxValue, bool checkTeam = true, Vector3 from = new Vector3())
+        public static bool IsValidTarget(this AttackableUnit target, float? range = null, bool onlyEnemyTeam = true, Vector3? rangeCheckFrom = null)
         {
-            if (target == null || !target.IsValid || !target.IsVisible || target.IsDead || !target.IsTargetable || target.IsInvulnerable)
+            if (target == null || !target.IsValid || target.IsDead || !target.IsVisible || !target.IsTargetable || target.IsInvulnerable)
             {
                 return false;
             }
-
-            if (checkTeam && Player.Instance.Team == target.Team)
+            if (onlyEnemyTeam && Player.Instance.Team == target.Team)
             {
                 return false;
             }
-
-            if (target.Name == "WardCorpse")
+            Obj_AI_Base obj_AI_Base = target as Obj_AI_Base;
+            if (obj_AI_Base != null && !obj_AI_Base.IsHPBarRendered)
             {
                 return false;
             }
@@ -720,20 +720,86 @@
             {
                 return true;
             }
+            range = new float?(range.Value.Pow());
+            Vector3 pos = (obj_AI_Base != null) ? obj_AI_Base.ServerPosition : target.Position;
+            if (!rangeCheckFrom.HasValue)
+            {
+                float num = Player.Instance.ServerPosition.DistanceSquared(pos);
+                float? num2 = range;
+                return num < num2.GetValueOrDefault() && num2.HasValue;
+            }
+            float num3 = rangeCheckFrom.Value.Distance(pos, true);
+            float? num4 = range;
+            return num3 < num4.GetValueOrDefault() && num4.HasValue;
+        }
+        /*
+    public static bool IsValidTarget(this AttackableUnit target, float? range = float.MaxValue, bool checkTeam = true, Vector3 from = new Vector3())
+    {
+        if (target == null || !target.IsValid || !target.IsVisible || target.IsDead || !target.IsTargetable || target.IsInvulnerable)
+        {
+            return false;
+        }
 
-            Obj_AI_Base obj_AI_Base = target as Obj_AI_Base;
-            if (obj_AI_Base != null && !obj_AI_Base.IsHPBarRendered)
+        if (checkTeam && Player.Instance.Team == target.Team)
+        {
+            return false;
+        }
+
+        if (target.Name == "WardCorpse")
+        {
+            return false;
+        }
+        if (!range.HasValue)
+        {
+            return true;
+        }
+
+        Obj_AI_Base obj_AI_Base = target as Obj_AI_Base;
+        if (obj_AI_Base != null && !obj_AI_Base.IsHPBarRendered)
+        {
+            return false;
+        }
+
+        Vector3 pos = (obj_AI_Base != null) ? obj_AI_Base.ServerPosition : target.Position;
+
+        var @base = target as Obj_AI_Base;
+
+        return !(range < float.MaxValue) || !(Vector2.DistanceSquared((@from.To2D().IsValid() ? @from : HeroManager.Player.ServerPosition).To2D(),
+                   (@base != null ? @base.ServerPosition : target.Position).To2D()) > range * range);
+    }//*/
+        /*
+        public static bool IsValidTarget(
+            this AttackableUnit unit,
+            float range = float.MaxValue,
+            bool checkTeam = true,
+            Vector3 from = default(Vector3))
+        {
+            if (unit == null || !unit.IsValid || !unit.IsVisible || unit.IsDead || !unit.IsTargetable)
             {
                 return false;
             }
 
-            Vector3 pos = (obj_AI_Base != null) ? obj_AI_Base.ServerPosition : target.Position;
+            if (unit.IsInvulnerable || (checkTeam && unit.Team == ObjectManager.Player.Team))
+            {
+                return false;
+            }
 
-            var @base = target as Obj_AI_Base;
+            if (unit.Name.Equals("WardCorpse", StringComparison.CurrentCultureIgnoreCase))
+            {
+                return false;
+            }
 
-            return !(range < float.MaxValue) || !(Vector2.DistanceSquared((@from.To2D().IsValid() ? @from : HeroManager.Player.ServerPosition).To2D(),
-                       (@base != null ? @base.ServerPosition : target.Position).To2D()) > range * range);
-        }
+            if (range < float.MaxValue)
+            {
+                var @base = unit as AIHeroClient;
+                var value1 = (from.To2D().IsValid() ? from : ObjectManager.Player.ServerPosition).To2D();
+                var value2 = (@base?.ServerPosition ?? unit.Position).To2D();
+
+                return Vector2.DistanceSquared(value1, value2) > range * range;
+            }
+
+            return true;
+        }//*/
 
         // Token: 0x0600074B RID: 1867 RVA: 0x0000AA19 File Offset: 0x00008C19
         public static float Pow(this float number)
@@ -999,7 +1065,7 @@
                     {
                         Text.X = (int)barPos.X + XOffset;
                         Text.Y = (int)barPos.Y + YOffset - 13;
-                        Text.text = ((int)(unit.Health - damage)).ToString();
+                        Text.Content = ((int)(unit.Health - damage)).ToString();
                         Text.OnEndScene();
                     }
 
