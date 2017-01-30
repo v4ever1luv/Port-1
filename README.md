@@ -1,14 +1,16 @@
 PORT by CTTBOT
 
 
-1. cài cái Lib Data vs Common trước 
-2. sau đó các lib cần thiết còn lại
-3. cuối cùng là cài các addon champon hoặc Utility
+cài bằng link này 
+https://github.com/cttbot/Port
+theo thứ tự những Lib này trước LeagueSharp.Data -> LeagueSharp.Common -> Sebby Lib -> Spacebar Prediction. cài xong 4 cái đó rồi mới bắt đầu cài hết những ass cần thiết còn lại.
+
+http://sv1.upsieutoc.com/2017/01/30/port437cc.jpg
 
 
 Đôi khi vài 3 trận sẽ bị crash vì 1 lỗi nào đó mà mình mò mãi vẫn chưa ra. Chỉ cần fix lỗi đó nữa là coi như xong.
 
-Các bạn dùng cũng như giúp mình test luôn nhé, có lỗi gì thì báo tại https://github.com/cttbot/Port/issues hoặc tại https://discord.gg/7ZKJb3R 
+Các bạn dùng cũng như giúp mình test luôn nhé, có lỗi gì thì báo tại https://github.com/cttbot/Port/issues
 
 
 
