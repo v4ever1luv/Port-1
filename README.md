@@ -5,7 +5,7 @@ cài bằng link này
 https://github.com/cttbot/Port
 theo thứ tự những Lib này trước LeagueSharp.Data -> LeagueSharp.Common -> Sebby Lib -> Spacebar Prediction. cài xong 4 cái đó rồi mới bắt đầu cài hết những ass cần thiết còn lại.
 
-http://sv1.upsieutoc.com/2017/01/30/port437cc.jpg
+<img src="http://sv1.upsieutoc.com/2017/01/30/port437cc.jpg" alt="port437cc.jpg" border="0" />
 
 
 Đôi khi vài 3 trận sẽ bị crash vì 1 lỗi nào đó mà mình mò mãi vẫn chưa ra. Chỉ cần fix lỗi đó nữa là coi như xong.
