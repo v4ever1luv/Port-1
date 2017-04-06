@@ -1,0 +1,10 @@
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\bin\Release\FioraLoader.exe.config
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\bin\Release\FioraLoader.exe
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\bin\Release\FioraLoader.pdb
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\bin\Release\EloBuddy.dll
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\bin\Release\EloBuddy.Sandbox.dll
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\bin\Release\EloBuddy.SDK.dll
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\bin\Release\SharpDX.Direct3D9.dll
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\bin\Release\SharpDX.dll
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\obj\Release\FioraLoader.exe
+C:\Users\Administrator\Documents\GitHub\Port\Fiora\FioraLoader\obj\Release\FioraLoader.pdb
