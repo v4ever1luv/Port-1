@@ -25,7 +25,7 @@
                 {
                     Chat.Print("PORT_SHARP_AIO not found : download PORT_SHARP_AIO.dll from cttbot's Github", Color.Orange);
                     Chat.Print("put PORT_SHARP_AIO.dll to " + dllPath, Color.Orange);
-                    //DownloadAddon();
+                    DownloadAddon();
                 }
                 else
                 {
@@ -38,7 +38,6 @@
                     {
                         Chat.Print("PORT_SHARP_AIO : download PORT_SHARP_AIO.dll from cttbot's Github", Color.Orange);
                         Chat.Print("put PORT_SHARP_AIO.dll to " + dllPath, Color.Orange);
-
                         DownloadAddon();
                         return;
                     }
@@ -76,13 +75,16 @@
         
         private static void DownloadAddon()
         {
+            if (File.Exists(dllPath))
+            {
+                File.Delete(dllPath);
+            }
+
             using (var web = new WebClient())
             {
                 web.DownloadFile(dllAddress, dllPath);
             }
-            Chat.Print("PORT_SHARP_AIO : download PORT_SHARP_AIO.dll from cttbot's Github", Color.Orange);
-            Chat.Print("put PORT_SHARP_AIO.dll to " + dllPath, Color.Orange);
-            Chat.Print("it's can't auto update ", Color.Orange);
+            Chat.Print("CTTBOT Loader: Download Successful ^^... Please F5 Reload the Addon!", Color.Yellow);
         }
 
         private static string DownloadVersion()
