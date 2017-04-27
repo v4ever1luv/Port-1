@@ -12,7 +12,7 @@
 
     internal class Program
     {
-        private static readonly string dllPath = @"C:\Users\" + Environment.UserName + @"\AppData\Roaming\EloBuddy\Addons\Libraries\PORT_SHARP_AIO.dll";
+        private static readonly string dllPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "EloBuddy", "Addons", "Libraries") + "\\PORT_SHARP_AIO.dll";
 
         private const string dllAddress = "https://github.com/cttbot/Port/raw/master/AIO/PORT_SHARP_AIO.dll";
         private const string dllVersion = "https://github.com/cttbot/Port/raw/master/AIO/version.txt";
