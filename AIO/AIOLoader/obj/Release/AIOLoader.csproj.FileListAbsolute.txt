@@ -1,0 +1,12 @@
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\AIOLoader.exe.config
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\AIOLoader.exe
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\AIOLoader.pdb
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\EloBuddy.dll
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\EloBuddy.SDK.dll
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\SharpDX.Direct3D9.dll
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\SharpDX.dll
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\Newtonsoft.Json.dll
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\bin\Release\EloBuddy.Sandbox.dll
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\obj\Release\AIOLoader.csprojResolveAssemblyReference.cache
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\obj\Release\AIOLoader.exe
+C:\Users\Administrator\Documents\GitHub\Port\AIO\AIOLoader\obj\Release\AIOLoader.pdb
